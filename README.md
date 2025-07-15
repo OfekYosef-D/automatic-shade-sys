@@ -4,7 +4,7 @@
 
 - [Node.js](https://nodejs.org/) and npm installed
 - [MySQL](https://www.mysql.com/) server running
-- Database `shade_system_test` and a `users` table created
+- Database `shade_system_test` 
 
 ---
 
