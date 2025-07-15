@@ -6,7 +6,10 @@ function UsersTable() {
   useEffect(() => {
     fetch('/api/users') // This will be proxied to http://localhost:3000/users
       .then(res => res.json())
-      .then(data => setUsers(data));
+      .then(data => {
+       console.log(data); // Log the fetched data to the browser console
+       setUsers(data);
+      });
   }, []);
 
   return (
@@ -17,6 +20,7 @@ function UsersTable() {
           <th>ID</th>
           <th>Name</th>
           <th>Email</th>
+          <th>Role</th>
         </tr>
       </thead>
       <tbody>
@@ -25,6 +29,7 @@ function UsersTable() {
             <td>{user.id}</td>
             <td>{user.name}</td>
             <td>{user.email}</td>
+            <td>{user.role}</td>
           </tr>
         ))}
       </tbody>
