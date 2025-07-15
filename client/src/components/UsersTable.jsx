@@ -7,7 +7,6 @@ function UsersTable() {
     fetch('/api/users') // This will be proxied to http://localhost:3000/users
       .then(res => res.json())
       .then(data => {
-       console.log(data); // Log the fetched data to the browser console
        setUsers(data);
       });
   }, []);
