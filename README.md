@@ -1,24 +1,45 @@
 ## Project Setup
 
-1. **Clone the repository**
-   ```sh
-   git clone https://github.com/OfekYosef-D/automatic-shade-sys.git
-   ```
+### Prerequisites
 
-2. **Navigate to the server folder**
-   ```sh
-   cd automatic-shade-sys/server
-   ```
+- [Node.js](https://nodejs.org/) and npm installed
+- [MySQL](https://www.mysql.com/) server running
+- Database `shade_system_test` and a `users` table created
 
-3. **Install dependencies**
-   ```sh
-   npm install
-   ```
+---
 
-4. **Start the server**
-   ```sh
-   npm start
-   ```
+### 1. Clone the repository
 
-> Make sure you have Node.js and npm installed on your computer.
-> Also, ensure your MySQL server is running and the database credentials in `index.js` are correct.
+```sh
+git clone https://github.com/OfekYosef-D/automatic-shade-sys.git
+cd automatic-shade-sys
+```
+
+---
+
+### 2. Install and start the backend
+
+```sh
+cd server
+npm install
+npm start
+```
+- The backend server will run at [http://localhost:3000](http://localhost:3000)
+- Make sure to update `server/index.js` with your MySQL credentials if needed
+
+---
+
+### 3. Install and start the frontend
+
+Open a new terminal window:
+
+```sh
+cd client
+npm install
+npm run dev
+```
+- The frontend will run at [http://localhost:5173](http://localhost:5173)
+
+---
+
+**Both the backend and frontend servers must be
