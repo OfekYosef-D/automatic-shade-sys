@@ -1,4 +1,4 @@
-import './App.css'
+import './styles/App.css'
 import UsersTable from './components/UsersTable'
 
 function App() {
