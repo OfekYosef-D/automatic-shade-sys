@@ -6,7 +6,7 @@ const app = express();
 const connection = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: '1234',
+    password: 'gal789',
     database: 'shade_system_test'
 })
 
@@ -26,7 +26,7 @@ app.listen(3000, () => {
   console.log('Server is running on http://localhost:3000');
 });
 
-app.get('/users', (req, res) => {
+app.get('/api/users', (req, res) => {
     connection.query('SELECT * FROM users', (err, results) => {
         if (err) {
             console.error('Error fetching users:', err);
@@ -38,4 +38,4 @@ app.get('/users', (req, res) => {
 })
 
 
-// database 3006 , server 3000 , 
+// database 3306 , server 3000 , 
