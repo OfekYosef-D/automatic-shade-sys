@@ -3,7 +3,7 @@ const mysql = require('mysql2');
 const connection = mysql.createConnection({
     host: 'localhost',
     user:   'root', // Adjust the user as needed
-    password: 'gal789', // Adjust the password as needed
+    password: '1234', // Adjust the password as needed
     database: 'shade_system_test' 
 });
 
