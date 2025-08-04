@@ -1,9 +1,14 @@
 const express = require('express');
+const cors = require('cors');
+const { requireAuth } = require('@clerk/express');
 const app = express();
+
+app.use(express.json());
+app.use(cors());
 
 const usersRouter = require('./routes/users');
 
-app.use('/api/users', usersRouter);
+app.use('/api/users', requireAuth, usersRouter);
 
 
 app.get('/', (req, res) => {

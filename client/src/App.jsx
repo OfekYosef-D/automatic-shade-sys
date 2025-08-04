@@ -1,28 +1,38 @@
-import './styles/App.css'
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import Home from './pages/Home';
-import About from './pages/About';
-import UsersTable from './components/UsersTable'
+import "./styles/index.css";
+import { useEffect } from "react";
+import { BrowserRouter } from "react-router-dom";
+import { useUser, useAuth } from "@clerk/clerk-react";
+import MainRoutes from "./components/MainRoutes";
 
 function App() {
+  const { user } = useUser();
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    async function syncUser() {
+      if (user) {
+        const token = await getToken();
+        await fetch("/api/users/sync", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: user.fullName,
+            email: user.primaryEmailAddress?.emailAddress,
+          }),
+        });
+      }
+    }
+    syncUser();
+  }, [user, getToken]);
+
   return (
     <BrowserRouter>
-      <nav>
-        <ul>
-          <li>
-            <Link to="/">Home</Link>
-          </li>
-          <li>
-            <Link to="/about">About</Link>
-          </li>
-        </ul>
-      </nav>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-      </Routes>
+      <MainRoutes />
     </BrowserRouter>
   );
 }
 
-export default App
+export default App;

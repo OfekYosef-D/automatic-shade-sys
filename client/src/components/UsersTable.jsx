@@ -1,15 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
 
 function UsersTable() {
   const [users, setUsers] = useState([]);
+  const { getToken } = useAuth();
 
   useEffect(() => {
-    fetch('/api/users')
-      .then(res => res.json())
-      .then(data => {
-        setUsers(data);
+    async function fetchUsers() {
+      const token = await getToken();
+      const res = await fetch("/api/users", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-  }, []);
+      if (!res.ok) throw new Error("Network response was not ok");
+      const data = await res.json();
+      setUsers(data);
+    }
+    fetchUsers().catch((error) => {
+      console.error("Error fetching users:", error);
+    });
+  }, [getToken]);
 
   return (
     <div className="overflow-x-auto">
@@ -23,7 +34,7 @@ function UsersTable() {
           </tr>
         </thead>
         <tbody>
-          {users.map(user => (
+          {users.map((user) => (
             <tr key={user.id} className="hover:bg-gray-50">
               <td className="py-2 px-4 border-b">{user.id}</td>
               <td className="py-2 px-4 border-b">{user.name}</td>
