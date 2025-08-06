@@ -8,7 +8,7 @@ app.use(cors());
 
 const usersRouter = require('./routes/users');
 
-app.use('/api/users', requireAuth, usersRouter);
+app.use('/api/users', usersRouter);
 
 
 app.get('/', (req, res) => {
@@ -16,6 +16,6 @@ app.get('/', (req, res) => {
 });
 
 
-app.listen(3000, () => {
-    console.log('Server is running on http://localhost:3000');
+app.listen(3001, () => {
+    console.log('Server is running on http://localhost:3001');
 });

@@ -7,19 +7,30 @@ function UsersTable() {
 
   useEffect(() => {
     async function fetchUsers() {
-      const token = await getToken();
-      const res = await fetch("/api/users", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!res.ok) throw new Error("Network response was not ok");
-      const data = await res.json();
-      setUsers(data);
+      try {
+        const token = await getToken();
+        console.log("Users Table Token:", token ? "exists" : "missing");
+
+        const res = await fetch("/api/users", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        console.log("Users API response status:", res.status);
+
+        if (!res.ok) {
+          console.error("API error response:", await res.text());
+          throw new Error(`Network response was not ok: ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log("Users data:", data);
+        setUsers(data);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
     }
-    fetchUsers().catch((error) => {
-      console.error("Error fetching users:", error);
-    });
+    fetchUsers();
   }, [getToken]);
 
   return (
