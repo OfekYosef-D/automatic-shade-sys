@@ -16,6 +16,7 @@ import { useAuth } from './hooks/useAuth';
 // Import the main parts of our club.
 import Home from './pages/Home'; // The main "lobby" page.
 import About from './pages/About'; // The "about us" page.
+import Users from './pages/Users'; // The "users" page.
 import Navbar from './components/Navbar'; // The "VIP Section Manager" component.
 
 // This is a small helper tool.
@@ -59,6 +60,7 @@ const AppLayout = () => {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
+          <Route path="/users" element={<Users />} />
           {/* We will add more "rooms" (Routes) here later. */}
         </Routes>
       </main>
