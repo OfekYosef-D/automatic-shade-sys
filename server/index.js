@@ -10,7 +10,10 @@ app.use(cors({
 }));
 
 const usersRouter = require('./routes/users');
+const dashboardRouter = require('./routes/dashboard');
+
 app.use('/api/users', usersRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 app.get('/', (req, res) => {
     res.send('hello from express');

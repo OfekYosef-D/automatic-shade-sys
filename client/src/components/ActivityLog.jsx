@@ -2,7 +2,6 @@ import React from 'react';
 import { RefreshCw, Edit, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 
 const ActivityLog = ({ activities = [] }) => {
-  // This function determines which icon to show based on activity type
   const getActivityIcon = (type) => {
     switch (type) {
       case 'reboot': return RefreshCw;
@@ -14,7 +13,6 @@ const ActivityLog = ({ activities = [] }) => {
     }
   };
 
-  // This function determines what color to use for the icon
   const getIconColor = (type) => {
     switch (type) {
       case 'reboot': return 'text-green-600';
@@ -37,13 +35,16 @@ const ActivityLog = ({ activities = [] }) => {
           {activities.map((activity, index) => {
             const IconComponent = getActivityIcon(activity.type);
             return (
-              <div key={index} className="flex items-start space-x-3">
+              <div key={activity.id || index} className="flex items-start space-x-3">
                 <div className={`p-2 rounded-full ${getIconColor(activity.type)} bg-opacity-10`}>
                   <IconComponent size={16} />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">{activity.description}</p>
-                  <p className="text-xs text-gray-500">{activity.time}</p>
+                  <p className="text-xs text-gray-500">{activity.time_description}</p>
+                  {activity.user_name && (
+                    <p className="text-xs text-gray-400">by {activity.user_name}</p>
+                  )}
                 </div>
               </div>
             );
