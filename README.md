@@ -46,6 +46,7 @@ npm run dev
 DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD="your passord"
+DB_PASSWORD="your password"
 DB_NAME="DB name"
 DB_PORT=3306
 
