@@ -24,7 +24,7 @@ cd server
 npm install
 npm start
 ```
-- The backend server will run at [http://localhost:3000](http://localhost:3000)
+- The backend server will run at [http://localhost:3001](http://localhost:3001)
 - Make sure to update `server/index.js` with your MySQL credentials if needed
 
 ---
@@ -42,6 +42,7 @@ npm run dev
 
 ---
 
+```sh
 .env file:
 DB_HOST=localhost
 DB_USER=root
@@ -49,6 +50,8 @@ DB_PASSWORD="your passord"
 DB_PASSWORD="your password"
 DB_NAME="DB name"
 DB_PORT=3306
+```
 
 **Both the backend and frontend servers must be
 **Both the backend and frontend servers must be running simultaneously for the application to work properly.**
+
