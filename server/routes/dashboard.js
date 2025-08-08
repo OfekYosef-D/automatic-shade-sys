@@ -1,0 +1,86 @@
+const express = require('express');
+const router = express.Router();
+const connection = require('../db');
+
+// GET dashboard metrics (calculated from real data)
+router.get('/metrics', (req, res) => {
+    console.log('GET /api/dashboard/metrics');
+    
+    const query = `
+        SELECT 
+            'Active Shades' as title,
+            (SELECT COUNT(*) FROM shades WHERE status = 'active') as value,
+            'gray' as color,
+            'Shield' as icon
+        UNION ALL
+        SELECT 
+            'Active Alerts' as title,
+            (SELECT COUNT(*) FROM alerts WHERE status = 'active') as value,
+            'red' as color,
+            'AlertTriangle' as icon
+        UNION ALL
+        SELECT 
+            'Manual Overrides' as title,
+            (SELECT COUNT(*) FROM manual_overrides WHERE ended_at IS NULL) as value,
+            'gray' as color,
+            'Settings' as icon
+    `;
+    
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching metrics:', err);
+            res.status(500).send('Error fetching metrics');
+            return;
+        }
+        console.log('Returning metrics:', results.length, results);
+        res.json(results);
+    });
+});
+
+// GET active alerts
+router.get('/alerts', (req, res) => {
+    console.log('GET /api/dashboard/alerts');
+    
+    const query = `
+        SELECT a.*, u.name as created_by_name
+        FROM alerts a
+        LEFT JOIN users u ON a.created_by_user_id = u.id
+        WHERE a.status = 'active'
+        ORDER BY a.priority DESC, a.created_at DESC
+    `;
+    
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching alerts:', err);
+            res.status(500).send('Error fetching alerts');
+            return;
+        }
+        console.log('Returning alerts:', results.length, results);
+        res.json(results);
+    });
+});
+
+// GET activity log
+router.get('/activities', (req, res) => {
+    console.log('GET /api/dashboard/activities');
+    
+    const query = `
+        SELECT al.*, u.name as user_name
+        FROM activity_log al
+        LEFT JOIN users u ON al.user_id = u.id
+        ORDER BY al.created_at DESC
+        LIMIT 5
+    `;
+    
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching activities:', err);
+            res.status(500).send('Error fetching activities');
+            return;
+        }
+        console.log('Returning activities:', results.length, results);
+        res.json(results);
+    });
+});
+
+module.exports = router;
