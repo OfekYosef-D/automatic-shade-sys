@@ -51,4 +51,4 @@ DB_NAME="DB name"
 DB_PORT=3306
 
 **Both the backend and frontend servers must be
-
+**Both the backend and frontend servers must be running simultaneously for the application to work properly.**
