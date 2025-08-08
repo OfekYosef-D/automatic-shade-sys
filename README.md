@@ -42,4 +42,12 @@ npm run dev
 
 ---
 
+.env file:
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD="your passord"
+DB_NAME="DB name"
+DB_PORT=3306
+
 **Both the backend and frontend servers must be
+
