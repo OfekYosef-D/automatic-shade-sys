@@ -96,7 +96,6 @@ INSERT INTO alerts (description, location, priority, created_by_user_id) VALUES
 ('Sensor malfunction in Room 101', 'Building 2, Room 101', 'Medium', 2),
 ('Unexpected shade movement', 'Building 6, Room 305', 'Low', 1);
 
-
 -- Insert sample activity log
 INSERT INTO activity_log (type, description, time_description, user_id) VALUES
 ('reboot', 'System rebooted successfully', '2 hours ago', 1),
