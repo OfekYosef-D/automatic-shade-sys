@@ -4,6 +4,7 @@ import MetricsCard from '../components/MetricsCard';
 import ActiveAlerts from '../components/ActiveAlerts';
 import ActivityLog from '../components/ActivityLog';
 import AddDeviceButton from '../components/AddDeviceButton';
+import AddAlertButton from '../components/AddAlertButton';
 
 const Home = () => {
   const [metrics, setMetrics] = useState([]);
@@ -75,12 +76,13 @@ const Home = () => {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Active Alerts - Takes up 2 columns on large screens */}
-        <div className="lg:col-span-2">
+        {/* Left Column - Active Alerts and Add Alert */}
+        <div className="lg:col-span-2 space-y-6">
           <ActiveAlerts alerts={alerts} />
+          <AddAlertButton />
         </div>
 
-        {/* Right Column */}
+        {/* Right Column - Activity Log and Add Device */}
         <div className="space-y-6">
           <ActivityLog activities={activities} />
           <AddDeviceButton />

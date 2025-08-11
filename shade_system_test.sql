@@ -78,7 +78,8 @@ CREATE TABLE IF NOT EXISTS manual_overrides (
 INSERT INTO users (name, email, role) VALUES
 ('Alice Green', 'alice@campus.edu', 'admin'),
 ('Bob Shade', 'bob@campus.edu', 'maintenance'),
-('Dana Planner', 'dana@campus.edu', 'planner');
+('Dana Planner', 'dana@campus.edu', 'planner'),
+('Gal Levy', 'levigal50@gmail.com', 'admin');
 
 INSERT INTO areas (building_number, room, location_note, description, created_by_user_id) VALUES
 (5, 'Cafeteria', 'Near outdoor seating', 'Sunny area outside the cafeteria', 3),
@@ -91,10 +92,9 @@ INSERT INTO shades (area_id, description, type, x, y, installed_by_user_id) VALU
 (3, 'Wooden Pergola Over Seating', 'pergola', 8, 12, 1);
 
 INSERT INTO alerts (description, location, priority, created_by_user_id) VALUES
-('Shade 12 in Room 203 is stuck', 'Building A, Room 203', 'High', 2),
-('Sensor malfunction in Room 101', 'Building B, Room 101', 'Medium', 2),
-('Unexpected shade movement', 'Building C, Room 305', 'Low', 1);
-
+('Shade 12 in Room 203 is stuck', 'Building 1, Room 203', 'High', 2),
+('Sensor malfunction in Room 101', 'Building 2, Room 101', 'Medium', 2),
+('Unexpected shade movement', 'Building 6, Room 305', 'Low', 1);
 
 -- Insert sample activity log
 INSERT INTO activity_log (type, description, time_description, user_id) VALUES

@@ -11,9 +11,11 @@ app.use(cors({
 
 const usersRouter = require('./routes/users');
 const dashboardRouter = require('./routes/dashboard');
+const alertsRouter = require('./routes/alerts');
 
 app.use('/api/users', usersRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/alerts', alertsRouter);
 
 app.get('/', (req, res) => {
     res.send('hello from express');

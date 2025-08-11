@@ -32,15 +32,15 @@ const ActivityLog = ({ activities = [] }) => {
         <p className="text-gray-500 text-center py-8">No recent activity</p>
       ) : (
         <div className="space-y-4">
-          {activities.map((activity, index) => {
+          {activities.slice(0, 3).map((activity, index) => {
             const IconComponent = getActivityIcon(activity.type);
             return (
-              <div key={activity.id || index} className="flex items-start space-x-3">
-                <div className={`p-2 rounded-full ${getIconColor(activity.type)} bg-opacity-10`}>
+              <div key={activity.id || index} className="flex items-start space-x-3 border-b border-gray-100 pb-3 last:border-b-0">
+                <div className={`p-2 rounded-full ${getIconColor(activity.type)} bg-opacity-10 flex-shrink-0`}>
                   <IconComponent size={16} />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{activity.description}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{activity.description}</p>
                   <p className="text-xs text-gray-500">{activity.time_description}</p>
                   {activity.user_name && (
                     <p className="text-xs text-gray-400">by {activity.user_name}</p>
