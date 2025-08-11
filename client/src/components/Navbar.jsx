@@ -13,18 +13,18 @@ import { Menu, X } from 'lucide-react';
 const navLinksConfig = {
   admin: [
     { name: 'Dashboard', href: '/' },
-    { name: 'Map', href: '/map' },
+    { name: 'Shading Control', href: '/shading-control' },
     { name: 'Users', href: '/users' },
     { name: 'Scheduler', href: '/scheduler' },
   ],
   maintenance: [
     { name: 'Dashboard', href: '/' },
-    { name: 'Map', href: '/map' },
+    { name: 'Shading Control', href: '/shading-control' },
     { name: 'Maintenance Log', href: '/logs' },
   ],
   planner: [
     { name: 'Dashboard', href: '/' },
-    { name: 'Map', href: '/map' },
+    { name: 'Shading Control', href: '/shading-control' },
     { name: 'Scheduler', href: '/scheduler' },
   ],
 };

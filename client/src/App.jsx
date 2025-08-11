@@ -18,6 +18,7 @@ import Home from './pages/Home'; // The main "lobby" page.
 import About from './pages/About'; // The "about us" page.
 import Users from './pages/Users'; // The "users" page.
 import AddAlert from './pages/AddAlert'; // The "add alert" page.
+import ShadingControl from './pages/ShadingControl'; // The "shading control" page.
 import Navbar from './components/Navbar'; // The "VIP Section Manager" component.
 
 // This is a small helper tool.
@@ -25,7 +26,7 @@ import Navbar from './components/Navbar'; // The "VIP Section Manager" component
 // into a simple name (like "Map"). This helps the Navbar know which button to highlight.
 const getActivePage = (pathname) => {
     if (pathname === '/') return 'Dashboard';
-    if (pathname.startsWith('/map')) return 'Map';
+    if (pathname.startsWith('/shading-control')) return 'Shading Control';
     if (pathname.startsWith('/users')) return 'Users';
     if (pathname.startsWith('/scheduler')) return 'Scheduler';
     return ''; // If we don't recognize the page, highlight nothing.
@@ -63,6 +64,7 @@ const AppLayout = () => {
           <Route path="/about" element={<About />} />
           <Route path="/users" element={<Users />} />
           <Route path="/add-alert" element={<AddAlert />} />
+          <Route path="/shading-control" element={<ShadingControl />} />
           {/* We will add more "rooms" (Routes) here later. */}
         </Routes>
       </main>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, Settings } from 'lucide-react';
 import MetricsCard from '../components/MetricsCard';
 import ActiveAlerts from '../components/ActiveAlerts';
+import ActiveOverrides from '../components/ActiveOverrides';
 import ActivityLog from '../components/ActivityLog';
 import AddDeviceButton from '../components/AddDeviceButton';
 import AddAlertButton from '../components/AddAlertButton';
@@ -76,16 +77,17 @@ const Home = () => {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Active Alerts and Add Alert */}
+        {/* Left Column - Active Alerts and Active Overrides */}
         <div className="lg:col-span-2 space-y-6">
           <ActiveAlerts alerts={alerts} />
-          <AddAlertButton />
+          <ActiveOverrides />
         </div>
 
         {/* Right Column - Activity Log and Add Device */}
         <div className="space-y-6">
           <ActivityLog activities={activities} />
           <AddDeviceButton />
+          <AddAlertButton />
         </div>
       </div>
     </div>
