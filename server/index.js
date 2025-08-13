@@ -12,10 +12,12 @@ app.use(cors({
 const usersRouter = require('./routes/users');
 const dashboardRouter = require('./routes/dashboard');
 const alertsRouter = require('./routes/alerts');
+const shadesRouter = require('./routes/shades');
 
 app.use('/api/users', usersRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/alerts', alertsRouter);
+app.use('/api/shades', shadesRouter);
 
 app.get('/', (req, res) => {
     res.send('hello from express');
