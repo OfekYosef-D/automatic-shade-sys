@@ -4,23 +4,18 @@ const connection = require('../db');
 
 // GET all users
 router.get('/', (req, res) => {
-    console.log('GET /api/users');
-    
     connection.query('SELECT * FROM users', (err, results) => {
         if (err) {
             console.error('Error fetching users:', err);
             res.status(500).send('Error fetching users');
             return;
         }
-        console.log('Returning users:', results.length, results);
         res.json(results);
     });
 }); 
 
 // POST new user
 router.post('/', (req, res) => {
-    console.log('POST /api/users - Body:', req.body);
-    
     const { name, email, role } = req.body;
 
     if (!name || !email) {
@@ -36,7 +31,6 @@ router.post('/', (req, res) => {
                 res.status(500).send('DB error');
                 return;
             }
-            console.log('Insert result:', result);
             res.status(201).json({ 
                 id: result.insertId, 
                 name, 

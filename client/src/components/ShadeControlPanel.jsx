@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Sun, Moon, Settings, AlertTriangle, CheckCircle, XCircle, Blinds, Umbrella, Building, Home, VenetianMask } from 'lucide-react';
-import AddShadeDevice from './AddShadeDevice';
+import { Sun, Moon, Settings, AlertTriangle, CheckCircle, XCircle, Blinds, Umbrella, Building, Home, VenetianMask, Trash2 } from 'lucide-react';
 
 const ShadeControlPanel = ({ area, shades, onShadeUpdate, user }) => {
   const [overrides, setOverrides] = useState({});
@@ -40,10 +39,10 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user }) => {
           onShadeUpdate(area.id);
         }
       } else {
-        console.error('Failed to update shade position');
+        // Failed to update shade position
       }
-    } catch (error) {
-      console.error('Error updating shade position:', error);
+    } catch {
+      // Error updating shade position
     } finally {
       setLoading(prev => ({ ...prev, [shadeId]: false }));
     }
@@ -102,8 +101,43 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user }) => {
           onShadeUpdate(area.id);
         }
       }
-    } catch (error) {
-      console.error('Error performing quick action:', error);
+    } catch {
+      // Error performing quick action
+    } finally {
+      setLoading(prev => ({ ...prev, [shadeId]: false }));
+    }
+  };
+
+  const handleDeleteDevice = async (shadeId) => {
+    if (!user) return;
+    
+    if (!window.confirm('Are you sure you want to delete this device? This action cannot be undone.')) {
+      return;
+    }
+
+    setLoading(prev => ({ ...prev, [shadeId]: true }));
+    
+    try {
+      const response = await fetch(`http://localhost:3001/api/shades/shades/${shadeId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove from overrides if exists
+        setOverrides(prev => {
+          const newOverrides = { ...prev };
+          delete newOverrides[shadeId];
+          return newOverrides;
+        });
+        
+        if (onShadeUpdate) {
+          onShadeUpdate(area.id);
+        }
+      } else {
+        // Failed to delete device
+      }
+    } catch {
+      // Error deleting device
     } finally {
       setLoading(prev => ({ ...prev, [shadeId]: false }));
     }
@@ -154,32 +188,6 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user }) => {
 
   return (
     <div className="space-y-6">
-      {/* Area Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">{area.room}</h2>
-            {area.room_number && (
-              <p className="text-gray-600">Room {area.room_number}</p>
-            )}
-            {area.description && (
-              <p className="text-gray-500 mt-1">{area.description}</p>
-            )}
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Building {area.building_number}</p>
-            <p className="text-sm text-gray-500">{area.floor}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Add Device Section */}
-      <AddShadeDevice 
-        area={area} 
-        onDeviceAdded={onShadeUpdate} 
-        user={user} 
-      />
-
       {/* Shades Control */}
       {shades.length > 0 ? (
         <div className="space-y-4">
@@ -270,24 +278,36 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user }) => {
                 </div>
               </div>
 
-              {/* Override Status */}
-              {overrides[shade.id] && (
-                <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-sm text-blue-700">
-                    Manual override active - {overrides[shade.id].position}% position
-                  </p>
-                  <p className="text-xs text-blue-600">
-                    Set at {new Date(overrides[shade.id].timestamp).toLocaleTimeString()}
-                  </p>
-                </div>
-              )}
+                             {/* Override Status */}
+               {overrides[shade.id] && (
+                 <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                   <p className="text-sm text-blue-700">
+                     Manual override active - {overrides[shade.id].position}% position
+                   </p>
+                   <p className="text-xs text-blue-600">
+                     Set at {new Date(overrides[shade.id].timestamp).toLocaleTimeString()}
+                   </p>
+                 </div>
+               )}
 
-              {loading[shade.id] && (
-                <div className="mt-3 text-center">
-                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  <span className="ml-2 text-sm text-gray-600">Updating...</span>
-                </div>
-              )}
+               {/* Delete Device Button */}
+               <div className="mt-4 pt-4 border-t border-gray-200">
+                 <button
+                   onClick={() => handleDeleteDevice(shade.id)}
+                   disabled={loading[shade.id]}
+                   className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                 >
+                   <Trash2 className="w-4 h-4 mr-2" />
+                   Delete Device
+                 </button>
+               </div>
+
+               {loading[shade.id] && (
+                 <div className="mt-3 text-center">
+                   <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                   <span className="ml-2 text-sm text-gray-600">Updating...</span>
+                 </div>
+               )}
             </div>
           ))}
         </div>

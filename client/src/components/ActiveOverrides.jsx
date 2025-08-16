@@ -15,8 +15,8 @@ const ActiveOverrides = () => {
       const response = await fetch('http://localhost:3001/api/shades/overrides');
       const data = await response.json();
       setOverrides(data);
-    } catch (error) {
-      console.error('Error fetching overrides:', error);
+    } catch {
+      // Error fetching overrides
     } finally {
       setLoading(false);
     }

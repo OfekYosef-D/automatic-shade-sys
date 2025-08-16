@@ -4,8 +4,6 @@ const connection = require('../db');
 
 // POST - Create a new alert
 router.post('/', (req, res) => {
-    console.log('POST /api/alerts', req.body);
-    
     const { description, location, priority, status, created_by_user_id } = req.body;
     
     // Validate required fields
@@ -27,7 +25,6 @@ router.post('/', (req, res) => {
             return;
         }
         
-        console.log('Alert created successfully:', result);
         res.status(201).json({ 
             message: 'Alert created successfully',
             alertId: result.insertId 
@@ -37,8 +34,6 @@ router.post('/', (req, res) => {
 
 // GET - Get all alerts (for future use)
 router.get('/', (req, res) => {
-    console.log('GET /api/alerts');
-    
     const query = `
         SELECT a.*, u.name as created_by_name
         FROM alerts a
@@ -52,8 +47,117 @@ router.get('/', (req, res) => {
             res.status(500).json({ error: 'Error fetching alerts' });
             return;
         }
-        console.log('Returning alerts:', results.length, results);
         res.json(results);
+    });
+});
+
+// PATCH - Update alert status
+router.patch('/:alertId/status', (req, res) => {
+    const alertId = req.params.alertId;
+    const { status, resolution_notes } = req.body;
+    
+    // Validate status
+    const validStatuses = ['active', 'resolved', 'acknowledged'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Invalid status. Must be one of: active, resolved, acknowledged' });
+    }
+    
+    const updateQuery = `
+        UPDATE alerts 
+        SET status = ?, 
+            resolved_at = ${status === 'resolved' ? 'CURRENT_TIMESTAMP' : 'NULL'}
+        WHERE id = ?
+    `;
+    
+    connection.query(updateQuery, [status, alertId], (err, result) => {
+        if (err) {
+            console.error('Error updating alert status:', err);
+            res.status(500).json({ error: 'Error updating alert status' });
+            return;
+        }
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Alert not found' });
+        }
+        
+        // Log the activity
+        const logQuery = `
+            INSERT INTO activity_log (type, description, time_description, user_id)
+            VALUES ('alert', ?, 'Just now', 1)
+        `;
+        
+        const statusText = status === 'resolved' ? 'resolved' : 
+                          status === 'acknowledged' ? 'acknowledged' : 'reactivated';
+        const logDescription = `Alert ${alertId} ${statusText}${resolution_notes ? ` - ${resolution_notes}` : ''}`;
+        
+        connection.query(logQuery, [logDescription], (err) => {
+            if (err) {
+                console.error('Error logging activity:', err);
+            }
+            
+            res.json({ 
+                message: 'Alert status updated successfully',
+                alertId: alertId,
+                status: status
+            });
+        });
+    });
+});
+
+// DELETE - Delete an alert
+router.delete('/:alertId', (req, res) => {
+    const alertId = req.params.alertId;
+    
+    // First, get the alert info for logging
+    const getAlertQuery = `
+        SELECT description, location, priority
+        FROM alerts
+        WHERE id = ?
+    `;
+    
+    connection.query(getAlertQuery, [alertId], (err, results) => {
+        if (err) {
+            console.error('Error fetching alert info:', err);
+            res.status(500).json({ error: 'Error fetching alert info' });
+            return;
+        }
+        
+        if (results.length === 0) {
+            res.status(404).json({ error: 'Alert not found' });
+            return;
+        }
+        
+        const alertInfo = results[0];
+        
+        // Delete the alert
+        const deleteQuery = `DELETE FROM alerts WHERE id = ?`;
+        
+        connection.query(deleteQuery, [alertId], (err, result) => {
+            if (err) {
+                console.error('Error deleting alert:', err);
+                res.status(500).json({ error: 'Error deleting alert' });
+                return;
+            }
+            
+            // Log the activity
+            const logQuery = `
+                INSERT INTO activity_log (type, description, time_description, user_id)
+                VALUES ('alert', ?, 'Just now', 1)
+            `;
+            
+            const logDescription = `Alert deleted: ${alertInfo.description} (${alertInfo.priority}) from ${alertInfo.location}`;
+            
+            connection.query(logQuery, [logDescription], (err) => {
+                if (err) {
+                    console.error('Error logging activity:', err);
+                }
+                
+                res.json({ 
+                    message: 'Alert deleted successfully',
+                    alertId: alertId
+                });
+            });
+        });
     });
 });
 

@@ -4,8 +4,6 @@ const connection = require('../db');
 
 // GET all areas grouped by building
 router.get('/areas', (req, res) => {
-    console.log('GET /api/shades/areas');
-    
     const query = `
         SELECT 
             building_number,
@@ -47,7 +45,6 @@ router.get('/areas', (req, res) => {
             });
         });
         
-        console.log('Returning areas grouped by building:', Object.keys(buildings).length);
         res.json(buildings);
     });
 });
@@ -55,8 +52,6 @@ router.get('/areas', (req, res) => {
 // GET shades for a specific area
 router.get('/areas/:areaId/shades', (req, res) => {
     const areaId = req.params.areaId;
-    console.log(`GET /api/shades/areas/${areaId}/shades`);
-    
     const query = `
         SELECT 
             s.*,
@@ -78,15 +73,12 @@ router.get('/areas/:areaId/shades', (req, res) => {
             return;
         }
         
-        console.log(`Returning ${results.length} shades for area ${areaId}`);
         res.json(results);
     });
 });
 
 // GET all shades with area information
 router.get('/shades', (req, res) => {
-    console.log('GET /api/shades/shades');
-    
     const query = `
         SELECT 
             s.*,
@@ -107,23 +99,20 @@ router.get('/shades', (req, res) => {
             return;
         }
         
-        console.log(`Returning ${results.length} shades`);
         res.json(results);
     });
 });
 
 // POST create new shade device
 router.post('/shades', (req, res) => {
-    const { area_id, description, type, current_position, target_position, installed_by_user_id } = req.body;
-    
-    console.log('POST /api/shades/shades', { area_id, description, type, current_position, target_position, installed_by_user_id });
+    const { area_id, description, type, current_position, target_position, installed_by_user_id, x, y } = req.body;
     
     const query = `
-        INSERT INTO shades (area_id, description, type, current_position, target_position, status, installed_by_user_id)
-        VALUES (?, ?, ?, ?, ?, 'active', ?)
+        INSERT INTO shades (area_id, description, type, current_position, target_position, status, installed_by_user_id, x, y)
+        VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)
     `;
     
-    connection.query(query, [area_id, description, type, current_position, target_position, installed_by_user_id], (err, result) => {
+    connection.query(query, [area_id, description, type, current_position, target_position, installed_by_user_id, x || null, y || null], (err, result) => {
         if (err) {
             console.error('Error creating shade:', err);
             res.status(500).send('Error creating shade');
@@ -133,7 +122,7 @@ router.post('/shades', (req, res) => {
         // Log the activity
         const logQuery = `
             INSERT INTO activity_log (type, description, time_description, user_id)
-            VALUES ('device', ?, 'Just now', ?)
+            VALUES ('installation', ?, 'Just now', ?)
         `;
         
         const logDescription = `New shade device installed: ${description} (${type}) in area ${area_id}`;
@@ -143,7 +132,6 @@ router.post('/shades', (req, res) => {
                 console.error('Error logging activity:', err);
             }
             
-            console.log(`Shade device created with ID ${result.insertId}`);
             res.json({ success: true, shade_id: result.insertId });
         });
     });
@@ -153,8 +141,6 @@ router.post('/shades', (req, res) => {
 router.post('/shades/:shadeId/override', (req, res) => {
     const shadeId = req.params.shadeId;
     const { override_type, position, reason, user_id } = req.body;
-    
-    console.log(`POST /api/shades/shades/${shadeId}/override`, { override_type, position, reason, user_id });
     
     // First, end any existing override for this shade
     const endOverrideQuery = `
@@ -210,8 +196,82 @@ router.post('/shades/:shadeId/override', (req, res) => {
                         console.error('Error logging activity:', err);
                     }
                     
-                    console.log(`Override created for shade ${shadeId}`);
                     res.json({ success: true, override_id: result.insertId });
+                });
+            });
+        });
+    });
+});
+
+// DELETE shade device
+router.delete('/shades/:shadeId', (req, res) => {
+    const shadeId = req.params.shadeId;
+    
+    // First, get the shade info for logging
+    const getShadeQuery = `
+        SELECT s.description, s.type, a.id as area_id
+        FROM shades s
+        JOIN areas a ON s.area_id = a.id
+        WHERE s.id = ?
+    `;
+    
+    connection.query(getShadeQuery, [shadeId], (err, results) => {
+        if (err) {
+            console.error('Error fetching shade info:', err);
+            res.status(500).send('Error fetching shade info');
+            return;
+        }
+        
+        if (results.length === 0) {
+            res.status(404).send('Shade not found');
+            return;
+        }
+        
+        const shadeInfo = results[0];
+        
+        // Delete related records first (manual overrides, schedules)
+        const deleteOverridesQuery = `DELETE FROM manual_overrides WHERE shade_id = ?`;
+        const deleteSchedulesQuery = `DELETE FROM schedules WHERE shade_id = ?`;
+        
+        connection.query(deleteOverridesQuery, [shadeId], (err) => {
+            if (err) {
+                console.error('Error deleting overrides:', err);
+                res.status(500).send('Error deleting overrides');
+                return;
+            }
+            
+            connection.query(deleteSchedulesQuery, [shadeId], (err) => {
+                if (err) {
+                    console.error('Error deleting schedules:', err);
+                    res.status(500).send('Error deleting schedules');
+                    return;
+                }
+                
+                // Finally delete the shade
+                const deleteShadeQuery = `DELETE FROM shades WHERE id = ?`;
+                
+                connection.query(deleteShadeQuery, [shadeId], (err, result) => {
+                    if (err) {
+                        console.error('Error deleting shade:', err);
+                        res.status(500).send('Error deleting shade');
+                        return;
+                    }
+                    
+                    // Log the activity
+                    const logQuery = `
+                        INSERT INTO activity_log (type, description, time_description, user_id)
+                        VALUES ('maintenance', ?, 'Just now', 1)
+                    `;
+                    
+                    const logDescription = `Shade device deleted: ${shadeInfo.description} (${shadeInfo.type}) from area ${shadeInfo.area_id}`;
+                    
+                    connection.query(logQuery, [logDescription], (err) => {
+                        if (err) {
+                            console.error('Error logging activity:', err);
+                        }
+                        
+                        res.json({ success: true });
+                    });
                 });
             });
         });
@@ -221,8 +281,6 @@ router.post('/shades/:shadeId/override', (req, res) => {
 // GET schedules for a specific shade
 router.get('/shades/:shadeId/schedules', (req, res) => {
     const shadeId = req.params.shadeId;
-    console.log(`GET /api/shades/shades/${shadeId}/schedules`);
-    
     const query = `
         SELECT 
             s.*,
@@ -240,7 +298,6 @@ router.get('/shades/:shadeId/schedules', (req, res) => {
             return;
         }
         
-        console.log(`Returning ${results.length} schedules for shade ${shadeId}`);
         res.json(results);
     });
 });
@@ -248,8 +305,6 @@ router.get('/shades/:shadeId/schedules', (req, res) => {
 // POST new schedule
 router.post('/schedules', (req, res) => {
     const { shade_id, name, day_of_week, start_time, end_time, target_position, created_by_user_id } = req.body;
-    
-    console.log('POST /api/shades/schedules', { shade_id, name, day_of_week, start_time, end_time, target_position });
     
     const query = `
         INSERT INTO schedules (shade_id, name, day_of_week, start_time, end_time, target_position, created_by_user_id)
@@ -276,7 +331,6 @@ router.post('/schedules', (req, res) => {
                 console.error('Error logging activity:', err);
             }
             
-            console.log(`Schedule created with ID ${result.insertId}`);
             res.json({ success: true, schedule_id: result.insertId });
         });
     });
@@ -285,7 +339,6 @@ router.post('/schedules', (req, res) => {
 // DELETE schedule
 router.delete('/schedules/:scheduleId', (req, res) => {
     const scheduleId = req.params.scheduleId;
-    console.log(`DELETE /api/shades/schedules/${scheduleId}`);
     
     const query = `DELETE FROM schedules WHERE id = ?`;
     
@@ -296,15 +349,12 @@ router.delete('/schedules/:scheduleId', (req, res) => {
             return;
         }
         
-        console.log(`Schedule ${scheduleId} deleted`);
         res.json({ success: true });
     });
 });
 
 // GET current manual overrides
 router.get('/overrides', (req, res) => {
-    console.log('GET /api/shades/overrides');
-    
     const query = `
         SELECT 
             mo.*,
@@ -328,7 +378,6 @@ router.get('/overrides', (req, res) => {
             return;
         }
         
-        console.log(`Returning ${results.length} active overrides`);
         res.json(results);
     });
 });

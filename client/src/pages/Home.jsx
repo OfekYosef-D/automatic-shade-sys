@@ -4,14 +4,25 @@ import MetricsCard from '../components/MetricsCard';
 import ActiveAlerts from '../components/ActiveAlerts';
 import ActiveOverrides from '../components/ActiveOverrides';
 import ActivityLog from '../components/ActivityLog';
-import AddDeviceButton from '../components/AddDeviceButton';
 import AddAlertButton from '../components/AddAlertButton';
+import AddAreaMap from '../components/AddAreaMap';
 
 const Home = () => {
   const [metrics, setMetrics] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Function to refresh alerts data
+  const refreshAlerts = async () => {
+    try {
+      const alertsRes = await fetch('http://localhost:3001/api/dashboard/alerts');
+      const alertsData = await alertsRes.json();
+      setAlerts(alertsData);
+    } catch {
+      // Error refreshing alerts
+    }
+  };
 
   // Map icon names to actual icon components
   const getIconComponent = (iconName) => {
@@ -48,8 +59,8 @@ const Home = () => {
         setMetrics(transformedMetrics);
         setAlerts(alertsData);
         setActivities(activitiesData);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+      } catch {
+        // Error fetching dashboard data
       } finally {
         setLoading(false);
       }
@@ -79,14 +90,13 @@ const Home = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Active Alerts and Active Overrides */}
         <div className="lg:col-span-2 space-y-6">
-          <ActiveAlerts alerts={alerts} />
+          <ActiveAlerts alerts={alerts} onAlertUpdate={refreshAlerts} />
           <ActiveOverrides />
         </div>
 
         {/* Right Column - Activity Log and Add Device */}
         <div className="space-y-6">
           <ActivityLog activities={activities} />
-          <AddDeviceButton />
           <AddAlertButton />
         </div>
       </div>
