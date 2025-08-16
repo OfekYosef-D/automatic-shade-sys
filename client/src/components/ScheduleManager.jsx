@@ -30,8 +30,8 @@ const ScheduleManager = ({ area, shades, user }) => {
         ...prev,
         [shadeId]: data
       }));
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
+    } catch {
+      // Error fetching schedules
     }
   };
 
@@ -69,10 +69,10 @@ const ScheduleManager = ({ area, shades, user }) => {
         // Refresh schedules
         fetchSchedulesForShade(selectedShade);
       } else {
-        console.error('Failed to create schedule');
+        // Failed to create schedule
       }
-    } catch (error) {
-      console.error('Error creating schedule:', error);
+    } catch {
+      // Error creating schedule
     } finally {
       setLoading(prev => ({ ...prev, add: false }));
     }
@@ -95,10 +95,10 @@ const ScheduleManager = ({ area, shades, user }) => {
           [shadeId]: prev[shadeId].filter(s => s.id !== scheduleId)
         }));
       } else {
-        console.error('Failed to delete schedule');
+        // Failed to delete schedule
       }
-    } catch (error) {
-      console.error('Error deleting schedule:', error);
+    } catch {
+      // Error deleting schedule
     } finally {
       setLoading(prev => ({ ...prev, [scheduleId]: false }));
     }

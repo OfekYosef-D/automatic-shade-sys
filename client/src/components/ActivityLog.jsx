@@ -40,7 +40,7 @@ const ActivityLog = ({ activities = [] }) => {
                   <IconComponent size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{activity.description}</p>
+                  <p className="text-sm font-medium text-gray-900 ">{activity.description}</p>
                   <p className="text-xs text-gray-500">{activity.time_description}</p>
                   {activity.user_name && (
                     <p className="text-xs text-gray-400">by {activity.user_name}</p>

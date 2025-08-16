@@ -39,10 +39,10 @@ const AddAlert = () => {
       if (response.ok) {
         navigate('/');
       } else {
-        console.error('Failed to create alert');
+        // Failed to create alert
       }
-    } catch (error) {
-      console.error('Error creating alert:', error);
+    } catch {
+      // Error creating alert
     } finally {
       setLoading(false);
     }

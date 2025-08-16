@@ -4,8 +4,6 @@ const connection = require('../db');
 
 // GET dashboard metrics (calculated from real data)
 router.get('/metrics', (req, res) => {
-    console.log('GET /api/dashboard/metrics');
-    
     const query = `
         SELECT 
             'Active Shades' as title,
@@ -32,15 +30,12 @@ router.get('/metrics', (req, res) => {
             res.status(500).send('Error fetching metrics');
             return;
         }
-        console.log('Returning metrics:', results.length, results);
         res.json(results);
     });
 });
 
 // GET active alerts
 router.get('/alerts', (req, res) => {
-    console.log('GET /api/dashboard/alerts');
-    
     const query = `
         SELECT a.*, u.name as created_by_name
         FROM alerts a
@@ -55,15 +50,12 @@ router.get('/alerts', (req, res) => {
             res.status(500).send('Error fetching alerts');
             return;
         }
-        console.log('Returning alerts:', results.length, results);
         res.json(results);
     });
 });
 
 // GET activity log
 router.get('/activities', (req, res) => {
-    console.log('GET /api/dashboard/activities');
-    
     const query = `
         SELECT al.*, u.name as user_name
         FROM activity_log al
@@ -78,7 +70,6 @@ router.get('/activities', (req, res) => {
             res.status(500).send('Error fetching activities');
             return;
         }
-        console.log('Returning activities:', results.length, results);
         res.json(results);
     });
 });
