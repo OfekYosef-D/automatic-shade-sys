@@ -15,7 +15,6 @@ import { useAuth } from './hooks/useAuth';
 
 // Import the main parts of our club.
 import Home from './pages/Home'; // The main "lobby" page.
-import About from './pages/About'; // The "about us" page.
 import Users from './pages/Users'; // The "users" page.
 import AddAlert from './pages/AddAlert'; // The "add alert" page.
 import Areas from './pages/Areas'; // The "areas" page.
@@ -60,7 +59,6 @@ const AppLayout = () => {
             and shows ONLY the page that matches. */}
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
           <Route path="/users" element={<Users />} />
           <Route path="/add-alert" element={<AddAlert />} />
           <Route path="/areas" element={<Areas />} />

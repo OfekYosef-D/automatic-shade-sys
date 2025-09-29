@@ -2,6 +2,21 @@ const express = require('express');
 const router = express.Router();
 const connection = require('../db'); 
 
+// Helpers
+function sanitizeString(input, { maxLength = 255 } = {}) {
+    if (input === undefined || input === null) return null;
+    let v = String(input);
+    v = v.trim().replace(/[\u0000-\u001F\u007F]/g, '');
+    v = v.replace(/<[^>]*>/g, '');
+    if (v.length > maxLength) v = v.slice(0, maxLength);
+    return v;
+}
+
+function isValidEmail(email) {
+    if (!email) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email));
+}
+
 // GET all users
 router.get('/', (req, res) => {
     connection.query('SELECT * FROM users', (err, results) => {
@@ -16,15 +31,24 @@ router.get('/', (req, res) => {
 
 // POST new user
 router.post('/', (req, res) => {
-    const { name, email, role } = req.body;
+    const name = sanitizeString(req.body.name, { maxLength: 50 });
+    const email = sanitizeString(req.body.email, { maxLength: 100 });
+    const role = sanitizeString(req.body.role, { maxLength: 20 }) || 'user';
 
     if (!name || !email) {
         return res.status(400).send('Name and email are required');
     }
+    if (!isValidEmail(email)) {
+        return res.status(400).send('Invalid email');
+    }
+    const validRoles = ['admin','maintenance','planner','user'];
+    if (!validRoles.includes(role)) {
+        return res.status(400).send('Invalid role');
+    }
 
     connection.query(
         'INSERT INTO users (name, email, role) VALUES (?, ?, ?)',
-        [name, email, role || 'user'],
+        [name, email, role],
         (err, result) => {
             if (err) {
                 console.error('Error inserting user:', err);

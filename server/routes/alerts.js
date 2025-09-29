@@ -2,13 +2,35 @@ const express = require('express');
 const router = express.Router();
 const connection = require('../db');
 
+// Helpers
+function sanitizeString(input, { maxLength = 2000 } = {}) {
+    if (input === undefined || input === null) return null;
+    let v = String(input);
+    v = v.trim().replace(/[\u0000-\u001F\u007F]/g, '');
+    v = v.replace(/<[^>]*>/g, '');
+    if (v.length > maxLength) v = v.slice(0, maxLength);
+    return v;
+}
+
 // POST - Create a new alert
 router.post('/', (req, res) => {
-    const { description, location, priority, status, created_by_user_id } = req.body;
+    const description = sanitizeString(req.body.description, { maxLength: 2000 });
+    const location = sanitizeString(req.body.location, { maxLength: 200 });
+    const priority = sanitizeString(req.body.priority, { maxLength: 10 });
+    const status = sanitizeString(req.body.status, { maxLength: 20 }) || 'active';
+    const created_by_user_id = Number(req.body.created_by_user_id) || 1;
     
     // Validate required fields
     if (!description || !location || !priority) {
         return res.status(400).json({ error: 'Description, location, and priority are required' });
+    }
+    const validPriorities = ['Low', 'Medium', 'High'];
+    if (!validPriorities.includes(priority)) {
+        return res.status(400).json({ error: 'Invalid priority. Must be one of: Low, Medium, High' });
+    }
+    const validStatuses = ['active', 'resolved', 'acknowledged'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Invalid status. Must be one of: active, resolved, acknowledged' });
     }
     
     const query = `
@@ -16,7 +38,7 @@ router.post('/', (req, res) => {
         VALUES (?, ?, ?, ?, ?, NOW())
     `;
     
-    const values = [description, location, priority, status || 'active', created_by_user_id || 1];
+    const values = [description, location, priority, status, created_by_user_id];
     
     connection.query(query, values, (err, result) => {
         if (err) {
@@ -54,7 +76,8 @@ router.get('/', (req, res) => {
 // PATCH - Update alert status
 router.patch('/:alertId/status', (req, res) => {
     const alertId = req.params.alertId;
-    const { status, resolution_notes } = req.body;
+    const status = sanitizeString(req.body.status, { maxLength: 20 });
+    const resolution_notes = sanitizeString(req.body.resolution_notes, { maxLength: 500 });
     
     // Validate status
     const validStatuses = ['active', 'resolved', 'acknowledged'];

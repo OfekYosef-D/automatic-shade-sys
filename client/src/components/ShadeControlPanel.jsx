@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sun, Moon, Settings, AlertTriangle, CheckCircle, XCircle, Blinds, Umbrella, Building, Home, VenetianMask, Trash2 } from 'lucide-react';
 
-const ShadeControlPanel = ({ area, shades, onShadeUpdate, user }) => {
+const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = false }) => {
   const [overrides, setOverrides] = useState({});
   const [loading, setLoading] = useState({});
 
@@ -290,17 +290,18 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user }) => {
                  </div>
                )}
 
-               {/* Delete Device Button */}
-               <div className="mt-4 pt-4 border-t border-gray-200">
-                 <button
-                   onClick={() => handleDeleteDevice(shade.id)}
-                   disabled={loading[shade.id]}
-                   className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                 >
-                   <Trash2 className="w-4 h-4 mr-2" />
-                   Delete Device
-                 </button>
-               </div>
+              {allowDelete && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => handleDeleteDevice(shade.id)}
+                    disabled={loading[shade.id]}
+                    className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Device
+                  </button>
+                </div>
+              )}
 
                {loading[shade.id] && (
                  <div className="mt-3 text-center">

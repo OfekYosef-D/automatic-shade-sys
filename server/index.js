@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
 
 const app = express();
 
@@ -25,7 +26,22 @@ app.get('/', (req, res) => {
     res.send('hello from express');
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+// Centralized error handling for clear client messages
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  // Multer file upload errors
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'File too large', limitMB: 10 });
+    }
+    return res.status(400).json({ error: 'Upload error', code: err.code });
+  }
+  if (err) {
+    console.error('Unhandled error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+  next();
 });
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT);

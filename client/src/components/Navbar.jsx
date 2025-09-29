@@ -12,18 +12,17 @@ import { Menu, X } from 'lucide-react';
 // When a user logs in, we'll look up their role (like 'admin') and grab the correct list of links.
 const navLinksConfig = {
   admin: [
-    { name: 'Dashboard', href: '/' },
-    { name: 'Areas', href: '/areas' },
-    { name: 'Users', href: '/users' },
+  { name: 'Dashboard', href: '/' },
+  { name: 'Areas', href: '/areas' },
+  { name: 'Users', href: '/users' },
   ],
   maintenance: [
-    { name: 'Dashboard', href: '/' },
-    { name: 'Areas', href: '/areas' },
-    { name: 'Maintenance Log', href: '/logs' },
+  { name: 'Dashboard', href: '/' },
+  { name: 'Areas', href: '/areas' },
   ],
   planner: [
-    { name: 'Dashboard', href: '/' },
-    { name: 'Areas', href: '/areas' },
+  { name: 'Dashboard', href: '/' },
+  { name: 'Areas', href: '/areas' },
   ],
 };
 
@@ -43,6 +42,7 @@ const NavLink = ({ name, href, isActive }) => (
       className="
         block md:inline-block px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 /* Basic styling: size, font, transitions */
         text-neutral-dark hover:bg-neutral-dark/10                                                    /* Normal state: dark text, light gray on hover */
+        cursor-pointer                                                                                /* Make it clear it's clickable */
         data-[active=true]:text-accent data-[active=true]:bg-accent/10                                /* Active state: If it has the `You Are Here` sticker, make it orange. */
       "
     >

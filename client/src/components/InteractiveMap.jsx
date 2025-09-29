@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Minus, MapPin, X, CheckCircle, AlertCircle } from 'lucide-react';
 import AddShadeDevice from './AddShadeDevice';
 import ShadeControlPanel from './ShadeControlPanel';
 
-const InteractiveMap = ({ area, onClose, onMapUpdated }) => {
+const InteractiveMap = ({ area, onClose, onMapUpdated, isEditMode = false }) => {
   const [zoom, setZoom] = useState(1);
   const [devices, setDevices] = useState([]);
   const [showAddDevice, setShowAddDevice] = useState(false);
@@ -11,25 +11,70 @@ const InteractiveMap = ({ area, onClose, onMapUpdated }) => {
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [showDeviceControl, setShowDeviceControl] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [mapSettingsOpen, setMapSettingsOpen] = useState(false);
+  const [currentArea, setCurrentArea] = useState(area);
+  const [areaForm, setAreaForm] = useState({
+    map_name: area?.map_name || '',
+    map_description: area?.map_description || ''
+  });
+  const [currentMapFile, setCurrentMapFile] = useState(area?.map_file_path);
+  const [imageBust, setImageBust] = useState(Date.now());
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageRetry, setImageRetry] = useState(0);
+  const [newMapFile, setNewMapFile] = useState(null);
+  const [isDraggingId, setIsDraggingId] = useState(null);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  const loadAreaData = useCallback(async () => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/maps/areas/${area.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDevices(data.devices || []);
+        if (data.area) {
+          setCurrentArea(data.area);
+          // Sync the form to the latest DB values so reopening settings shows fresh data
+          setAreaForm({
+            map_name: data.area.map_name || '',
+            map_description: data.area.map_description || ''
+          });
+          // Update map file if changed elsewhere
+          if (data.area.map_file_path && data.area.map_file_path !== currentMapFile) {
+            setCurrentMapFile(data.area.map_file_path);
+            setImageBust(Date.now());
+            setImageLoaded(false);
+          }
+        }
+      }
+    } catch {
+      // Error loading area data
+    }
+  }, [area?.id, currentMapFile]);
 
   // Load existing data when area changes
   useEffect(() => {
     if (area) {
       loadAreaData();
     }
+  }, [area, loadAreaData]);
+
+  // Keep form and map file in sync when area changes
+  useEffect(() => {
+    setAreaForm({
+      map_name: area?.map_name || '',
+      map_description: area?.map_description || ''
+    });
+    setCurrentArea(area);
+    setCurrentMapFile(area?.map_file_path);
+    setImageBust(Date.now());
+    setImageLoaded(false);
+    setImageRetry(0);
   }, [area]);
 
-  const loadAreaData = async () => {
-    try {
-      const response = await fetch(`http://localhost:3001/api/maps/areas/${area.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setDevices(data.devices || []);
-      }
-    } catch {
-      // Error loading area data
-    }
-  };
+  // Reset image loaded flag when src parameters change
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [currentMapFile, imageBust]);
 
   // Zoom controls
   const handleZoomIn = () => setZoom(prev => Math.min(prev * 1.2, 3));
@@ -41,14 +86,106 @@ const InteractiveMap = ({ area, onClose, onMapUpdated }) => {
     const x = (e.clientX - rect.left) / zoom;
     const y = (e.clientY - rect.top) / zoom;
     
-    setClickPosition({ x, y });
-    setShowAddDevice(true);
+    if (isEditMode) {
+      setClickPosition({ x, y });
+      setShowAddDevice(true);
+    }
   };
 
   // Device control functions
   const handleDeviceClick = (device) => {
+    if (isEditMode) {
+      // no-op: drag handles are used in edit mode
+      return;
+    }
     setSelectedDevice(device);
     setShowDeviceControl(true);
+  };
+
+  // Drag handlers for devices in edit mode
+  const startDrag = (deviceId) => setIsDraggingId(deviceId);
+  const stopDrag = () => setIsDraggingId(null);
+  const onDrag = (e) => {
+    if (!isEditMode || !isDraggingId) return;
+    const container = e.currentTarget.closest('[data-map-container]');
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
+    setDevices(prev => prev.map(d => d.id === isDraggingId ? { ...d, x, y } : d));
+  };
+
+  const persistDevicePosition = async (device) => {
+    try {
+      await fetch(`http://localhost:3001/api/shades/shades/${device.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x: Math.round(device.x), y: Math.round(device.y) })
+      });
+      if (onMapUpdated) onMapUpdated();
+      showNotification('Device position saved', 'success');
+    } catch {
+      showNotification('Failed to save device position', 'error');
+    }
+  };
+
+  const handleAreaFormChange = (e) => {
+    const { name, value } = e.target;
+    setAreaForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveAreaSettings = async () => {
+    setSavingSettings(true);
+    const toNull = (v) => (v === '' || v === undefined ? null : v);
+    const payload = {
+      map_name: toNull(areaForm.map_name),
+      map_description: toNull(areaForm.map_description)
+    };
+    try {
+      const res = await fetch(`http://localhost:3001/api/maps/areas/${area.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        showNotification('Area settings saved', 'success');
+        // Pull fresh data from DB so UI reflects saved values immediately
+        await loadAreaData();
+        if (onMapUpdated) onMapUpdated();
+      } else {
+        showNotification('Failed to save settings', 'error');
+      }
+    } catch {
+      showNotification('Failed to save settings', 'error');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleReplaceMap = async () => {
+    if (!newMapFile) return;
+    const fd = new FormData();
+    fd.append('mapFile', newMapFile);
+    try {
+      const res = await fetch(`http://localhost:3001/api/maps/areas/${area.id}/map`, {
+        method: 'PUT',
+        body: fd
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewMapFile(null);
+        showNotification('Map replaced successfully', 'success');
+        if (data?.filename) {
+          setCurrentMapFile(data.filename);
+        }
+        setImageBust(Date.now());
+        setImageRetry(0);
+        await loadAreaData();
+        if (onMapUpdated) onMapUpdated();
+      }
+    } catch {
+      showNotification('Failed to replace map', 'error');
+    }
   };
 
   // Handle device added successfully
@@ -88,14 +225,22 @@ const InteractiveMap = ({ area, onClose, onMapUpdated }) => {
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
-              {area.map_name} - Interactive Map
+              {isEditMode ? areaForm.map_name : (currentArea?.map_name || area.map_name)} {isEditMode ? '- Configure' : '- Interactive Map'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              Zoom: {Math.round(zoom * 100)}% | Click anywhere to add device
+              Zoom: {Math.round(zoom * 100)}% {isEditMode ? '| Click to add device, drag to reposition' : '| Click anywhere to add device'}
             </p>
           </div>
           
           <div className="flex items-center space-x-3">
+            {isEditMode && (
+              <button
+                onClick={() => setMapSettingsOpen(v => !v)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Settings
+              </button>
+            )}
             {/* Zoom Controls */}
             <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
               <button
@@ -127,27 +272,45 @@ const InteractiveMap = ({ area, onClose, onMapUpdated }) => {
         {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden">
           {/* Map Container */}
-          <div className="flex-1 relative overflow-hidden bg-gray-100">
+          <div className="flex-1 relative overflow-hidden bg-gray-100" data-map-container>
             <div
-              className="w-full h-full relative cursor-crosshair"
+              className={`w-full h-full relative ${isEditMode ? 'cursor-crosshair' : 'cursor-default'}`}
               onClick={handleMapClick}
+              onMouseMove={onDrag}
+              onMouseUp={stopDrag}
             >
               {/* Map Image */}
               <img
-                src={`http://localhost:3001/api/maps/files/${area.map_file_path}`}
-                alt={area.map_name}
+                src={`http://localhost:3001/api/maps/files/${currentMapFile}?v=${imageBust}&r=${imageRetry}`}
+                alt={currentArea?.map_name || area.map_name}
                 className="absolute inset-0 w-full h-full object-contain"
                 style={{
                   transform: `scale(${zoom})`,
                   transformOrigin: '0 0'
                 }}
+                onLoad={() => setImageLoaded(true)}
+                onError={() => {
+                  if (imageRetry < 3) {
+                    setTimeout(() => {
+                      setImageBust(Date.now());
+                      setImageRetry(prev => prev + 1);
+                    }, 400 * (imageRetry + 1));
+                  }
+                }}
               />
+
+              {/* Image loading overlay */}
+              {!imageLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="px-3 py-1 rounded-md bg-white/80 text-gray-700 text-sm shadow">Loading map…</div>
+                </div>
+              )}
 
               {/* Devices */}
               {devices.map(device => (
                 <div
                   key={device.id}
-                  className="absolute w-10 h-10 rounded-full border-3 border-white shadow-lg cursor-pointer hover:scale-125 transition-all duration-200"
+                  className={`absolute w-10 h-10 rounded-full border-3 border-white shadow-lg ${isEditMode ? 'cursor-move' : 'cursor-pointer'} hover:scale-125 transition-all duration-200`}
                   style={{
                     left: (device.x || 0) * zoom - 20,
                     top: (device.y || 0) * zoom - 20,
@@ -159,6 +322,20 @@ const InteractiveMap = ({ area, onClose, onMapUpdated }) => {
                     e.stopPropagation();
                     handleDeviceClick(device);
                   }}
+                  onMouseDown={(e) => {
+                    if (!isEditMode) return;
+                    e.stopPropagation();
+                    startDrag(device.id);
+                  }}
+                  onMouseUp={(e) => {
+                    if (!isEditMode) return;
+                    e.stopPropagation();
+                    stopDrag();
+                    const updated = devices.find(d => d.id === device.id);
+                    if (updated) {
+                      persistDevicePosition(updated);
+                    }
+                  }}
                 >
                   <div className="w-full h-full flex items-center justify-center">
                     <MapPin className="w-5 h-5 text-white" />
@@ -167,7 +344,7 @@ const InteractiveMap = ({ area, onClose, onMapUpdated }) => {
               ))}
 
               {/* Click indicator when adding device */}
-              {showAddDevice && (
+              {isEditMode && showAddDevice && (
                 <div className="absolute w-6 h-6 bg-green-500 rounded-full border-3 border-white animate-pulse pointer-events-none shadow-lg"
                   style={{
                     left: clickPosition.x * zoom - 12,
@@ -184,14 +361,14 @@ const InteractiveMap = ({ area, onClose, onMapUpdated }) => {
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Map Controls</h3>
               <p className="text-sm text-gray-600 mt-1">
-                Manage devices and view information
+                {isEditMode ? 'Edit devices and area settings' : 'Manage devices and view information'}
               </p>
             </div>
 
             {/* Sidebar Content */}
             <div className="flex-1 overflow-y-auto">
               {/* Add Device Section */}
-              {showAddDevice && (
+              {isEditMode && showAddDevice && (
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-md font-medium text-gray-900">Add New Device</h4>
@@ -218,8 +395,33 @@ const InteractiveMap = ({ area, onClose, onMapUpdated }) => {
                 </div>
               )}
 
+              {/* Area Settings Panel */}
+              {isEditMode && mapSettingsOpen && (
+                <div className="p-6 border-b border-gray-200 space-y-3">
+                  <h4 className="text-md font-medium text-gray-900">Area Settings</h4>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input name="map_name" value={areaForm.map_name} onChange={handleAreaFormChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea name="map_description" value={areaForm.map_description} onChange={handleAreaFormChange} rows="2" className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  </div>
+                  <div className="flex space-x-2">
+                    <button onClick={handleSaveAreaSettings} disabled={savingSettings} className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm disabled:opacity-50">
+                      {savingSettings ? 'Saving…' : 'Save Settings'}
+                    </button>
+                    <label className="px-3 py-2 border border-gray-300 rounded-md text-sm cursor-pointer">
+                      Replace Map
+                      <input type="file" className="hidden" accept="image/*,.svg" onChange={(e) => setNewMapFile(e.target.files?.[0] || null)} />
+                    </label>
+                    <button onClick={handleReplaceMap} disabled={!newMapFile} className="px-3 py-2 bg-green-600 disabled:opacity-50 text-white rounded-md text-sm">Upload</button>
+                  </div>
+                </div>
+              )}
+
               {/* Device Control Section */}
-              {showDeviceControl && selectedDevice && (
+              {!isEditMode && showDeviceControl && selectedDevice && (
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-md font-medium text-gray-900">Device Control</h4>
@@ -241,12 +443,13 @@ const InteractiveMap = ({ area, onClose, onMapUpdated }) => {
                       if (onMapUpdated) onMapUpdated();
                     }}
                     user={{ id: 1 }}
+                    allowDelete={false}
                   />
                 </div>
               )}
 
               {/* Default State */}
-              {!showAddDevice && !showDeviceControl && (
+              {!isEditMode && !showAddDevice && !showDeviceControl && (
                 <div className="p-6">
                   <div className="text-center py-8">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
