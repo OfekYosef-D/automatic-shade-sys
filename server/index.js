@@ -14,11 +14,13 @@ const dashboardRouter = require('./routes/dashboard');
 const alertsRouter = require('./routes/alerts');
 const shadesRouter = require('./routes/shades');
 const mapsRouter = require('./routes/maps');
+const schedulesRouter = require('./routes/schedules');
 
 app.use('/api/users', usersRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/alerts', alertsRouter);
 app.use('/api/shades', shadesRouter);
+app.use('/api/schedules', schedulesRouter);
 app.use('/api/maps', mapsRouter);
 
 app.get('/', (req, res) => {
