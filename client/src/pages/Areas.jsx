@@ -7,6 +7,8 @@ const Areas = () => {
     const [areas, setAreas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedArea, setSelectedArea] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
+    const [editMode, setEditMode] = useState(false);
 
     useEffect(() => {
         fetchAreas();
@@ -34,11 +36,12 @@ const Areas = () => {
     };
 
     const handleDeleteArea = async (areaId) => {
-        if (!confirm('Are you sure you want to delete this area? This will also delete the map file and all associated devices.')) {
+        if (!window.confirm('Are you sure you want to delete this area? This will also delete the map file and all associated devices.')) {
             return;
         }
 
         try {
+            setDeletingId(areaId);
             const response = await fetch(`http://localhost:3001/api/maps/areas/${areaId}`, {
                 method: 'DELETE',
             });
@@ -50,10 +53,18 @@ const Areas = () => {
             }
         } catch {
             // Error deleting area
+        } finally {
+            setDeletingId(null);
         }
     };
 
     const handleViewArea = (area) => {
+        setEditMode(false);
+        setSelectedArea(area);
+    };
+
+    const handleConfigureArea = (area) => {
+        setEditMode(true);
         setSelectedArea(area);
     };
 
@@ -156,17 +167,23 @@ const Areas = () => {
                                     </button>
 
                                     <button
-                                        onClick={() => handleViewArea(area)}
-                                        className="flex items-center justify-center px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                                        onClick={() => handleConfigureArea(area)}
+                                        disabled={deletingId === area.id}
+                                        className={`flex items-center justify-center px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${deletingId === area.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         <Settings className="w-4 h-4" />
                                     </button>
 
                                     <button
                                         onClick={() => handleDeleteArea(area.id)}
-                                        className="flex items-center justify-center px-3 py-2 border border-red-300 text-red-700 text-sm font-medium rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                                        disabled={deletingId === area.id}
+                                        className={`flex items-center justify-center px-3 py-2 border border-red-300 text-red-700 text-sm font-medium rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors ${deletingId === area.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
-                                        <Trash2 className="w-4 h-4" />
+                                        {deletingId === area.id ? (
+                                            <svg className="animate-spin h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                                        ) : (
+                                            <Trash2 className="w-4 h-4" />
+                                        )}
                                     </button>
                                 </div>
                             </div>
@@ -181,6 +198,7 @@ const Areas = () => {
           area={selectedArea}
           onClose={() => setSelectedArea(null)}
           onMapUpdated={fetchAreas}
+          isEditMode={editMode}
         />
       )}
         </div>

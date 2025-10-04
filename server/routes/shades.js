@@ -2,6 +2,16 @@ const express = require('express');
 const router = express.Router();
 const connection = require('../db');
 
+// Helpers
+function sanitizeString(input, { maxLength = 255 } = {}) {
+    if (input === undefined || input === null) return null;
+    let v = String(input);
+    v = v.trim().replace(/[\u0000-\u001F\u007F]/g, '');
+    v = v.replace(/<[^>]*>/g, '');
+    if (v.length > maxLength) v = v.slice(0, maxLength);
+    return v;
+}
+
 // GET all areas grouped by building
 router.get('/areas', (req, res) => {
     const query = `
@@ -105,7 +115,14 @@ router.get('/shades', (req, res) => {
 
 // POST create new shade device
 router.post('/shades', (req, res) => {
-    const { area_id, description, type, current_position, target_position, installed_by_user_id, x, y } = req.body;
+    const area_id = Number(req.body.area_id);
+    const description = sanitizeString(req.body.description, { maxLength: 100 });
+    const type = sanitizeString(req.body.type, { maxLength: 20 });
+    const current_position = Math.max(0, Math.min(100, Number(req.body.current_position || 0)));
+    const target_position = Math.max(0, Math.min(100, Number(req.body.target_position || 0)));
+    const installed_by_user_id = Number(req.body.installed_by_user_id);
+    const x = req.body.x === null || req.body.x === undefined ? null : Math.trunc(Number(req.body.x));
+    const y = req.body.y === null || req.body.y === undefined ? null : Math.trunc(Number(req.body.y));
     
     const query = `
         INSERT INTO shades (area_id, description, type, current_position, target_position, status, installed_by_user_id, x, y)
@@ -135,6 +152,53 @@ router.post('/shades', (req, res) => {
             res.json({ success: true, shade_id: result.insertId });
         });
     });
+});
+
+// PUT update shade fields (description, type, positions, coordinates)
+router.put('/shades/:shadeId', (req, res) => {
+    const shadeId = req.params.shadeId;
+    const description = sanitizeString(req.body.description, { maxLength: 100 });
+    const type = sanitizeString(req.body.type, { maxLength: 20 });
+    const current_position = req.body.current_position === undefined ? null : Math.max(0, Math.min(100, Number(req.body.current_position)));
+    const target_position = req.body.target_position === undefined ? null : Math.max(0, Math.min(100, Number(req.body.target_position)));
+    const x = req.body.x === undefined ? null : Math.trunc(Number(req.body.x));
+    const y = req.body.y === undefined ? null : Math.trunc(Number(req.body.y));
+    const status = sanitizeString(req.body.status, { maxLength: 30 });
+
+    const query = `
+        UPDATE shades
+        SET 
+            description = COALESCE(?, description),
+            type = COALESCE(?, type),
+            current_position = COALESCE(?, current_position),
+            target_position = COALESCE(?, target_position),
+            x = COALESCE(?, x),
+            y = COALESCE(?, y),
+            status = COALESCE(?, status)
+        WHERE id = ?
+    `;
+
+    connection.query(
+        query,
+        [
+            description ?? null,
+            type ?? null,
+            current_position ?? null,
+            target_position ?? null,
+            x ?? null,
+            y ?? null,
+            status ?? null,
+            shadeId
+        ],
+        (err) => {
+            if (err) {
+                console.error('Error updating shade:', err);
+                res.status(500).send('Error updating shade');
+                return;
+            }
+            res.json({ success: true });
+        }
+    );
 });
 
 // POST manual override for a shade

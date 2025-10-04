@@ -5,6 +5,41 @@ const fs = require('fs');
 const router = express.Router();
 const connection = require('../db');
 
+// Helpers: sanitize and validate
+function sanitizeString(input, { maxLength = 1000 } = {}) {
+  if (input === undefined || input === null) return null;
+  let value = String(input);
+  // Trim and remove control characters
+  value = value.trim().replace(/[\u0000-\u001F\u007F]/g, '');
+  // Strip HTML tags
+  value = value.replace(/<[^>]*>/g, '');
+  // Enforce length
+  if (value.length > maxLength) value = value.slice(0, maxLength);
+  return value;
+}
+
+function toNullableInt(input) {
+  if (input === undefined || input === null || input === '') return null;
+  const n = Number(input);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+function isSafeSvgFile(filePath) {
+  try {
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext !== '.svg') return true; // only check svg
+    const content = fs.readFileSync(filePath, 'utf8').toLowerCase();
+    // Basic checks against embedded scripts/handlers
+    if (content.includes('<script') || content.includes('onload=') || content.includes('javascript:')) {
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('Error checking SVG:', e);
+    return false;
+  }
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -41,10 +76,118 @@ const upload = multer({
   }
 });
 
+// Update area metadata (name/description/building/floor/room info)
+router.put('/areas/:id', (req, res) => {
+  const areaId = req.params.id;
+  const map_name = sanitizeString(req.body.map_name, { maxLength: 255 });
+  const map_description = sanitizeString(req.body.map_description, { maxLength: 2000 });
+  const building_number = toNullableInt(req.body.building_number);
+  const floor = sanitizeString(req.body.floor, { maxLength: 50 });
+  const room = sanitizeString(req.body.room, { maxLength: 100 });
+  const room_number = sanitizeString(req.body.room_number, { maxLength: 50 });
+  const location_note = sanitizeString(req.body.location_note, { maxLength: 100 });
+  const description = sanitizeString(req.body.description, { maxLength: 2000 });
+
+  const query = `
+    UPDATE areas
+    SET 
+      map_name = COALESCE(?, map_name),
+      map_description = COALESCE(?, map_description),
+      building_number = COALESCE(?, building_number),
+      floor = COALESCE(?, floor),
+      room = COALESCE(?, room),
+      room_number = COALESCE(?, room_number),
+      location_note = COALESCE(?, location_note),
+      description = COALESCE(?, description)
+    WHERE id = ?
+  `;
+
+  connection.query(
+    query,
+    [
+      map_name ?? null,
+      map_description ?? null,
+      building_number ?? null,
+      floor ?? null,
+      room ?? null,
+      room_number ?? null,
+      location_note ?? null,
+      description ?? null,
+      areaId
+    ],
+    (err) => {
+      if (err) {
+        console.error('Error updating area:', err);
+        res.status(500).json({ error: 'Failed to update area' });
+        return;
+      }
+      res.json({ message: 'Area updated successfully' });
+    }
+  );
+});
+
+// Replace area map file
+router.put('/areas/:id/map', upload.single('mapFile'), (req, res) => {
+  const areaId = req.params.id;
+  const mapFile = req.file;
+
+  if (!mapFile) {
+    return res.status(400).json({ error: 'mapFile is required' });
+  }
+
+  // Basic SVG safety check
+  if (!isSafeSvgFile(mapFile.path)) {
+    try { fs.unlinkSync(mapFile.path); } catch {}
+    return res.status(400).json({ error: 'Unsafe SVG content detected' });
+  }
+
+  // Get existing filename to delete
+  const selectQuery = 'SELECT map_file_path FROM areas WHERE id = ?';
+  connection.query(selectQuery, [areaId], (err, rows) => {
+    if (err) {
+      console.error('Error fetching existing map:', err);
+      res.status(500).json({ error: 'Failed to replace map' });
+      return;
+    }
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Area not found' });
+    }
+
+    const oldFilename = rows[0].map_file_path;
+    const newFilename = path.basename(mapFile.path);
+
+    const updateQuery = 'UPDATE areas SET map_file_path = ?, map_file_type = ? WHERE id = ?';
+    connection.query(updateQuery, [newFilename, mapFile.mimetype, areaId], (err2) => {
+      if (err2) {
+        console.error('Error updating area map path:', err2);
+        res.status(500).json({ error: 'Failed to save new map' });
+        return;
+      }
+
+      // Delete old file if present
+      if (oldFilename) {
+        const oldPath = path.join(__dirname, '../uploads/maps', oldFilename);
+        if (fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch (e) { console.error('Failed to delete old map:', e); }
+        }
+      }
+
+      res.json({ message: 'Map replaced successfully', filename: newFilename });
+    });
+  });
+});
+
 // Upload a new map and create area
 router.post('/upload', upload.single('mapFile'), (req, res) => {
   try {
-    const { mapName, mapDescription, buildingNumber, floor, room, roomNumber, locationNote, description } = req.body;
+    const mapName = sanitizeString(req.body.mapName, { maxLength: 255 });
+    const mapDescription = sanitizeString(req.body.mapDescription, { maxLength: 2000 });
+    const buildingNumber = toNullableInt(req.body.buildingNumber);
+    const floor = sanitizeString(req.body.floor, { maxLength: 50 });
+    const room = sanitizeString(req.body.room, { maxLength: 100 });
+    const roomNumber = sanitizeString(req.body.roomNumber, { maxLength: 50 });
+    const locationNote = sanitizeString(req.body.locationNote, { maxLength: 100 });
+    const description = sanitizeString(req.body.description, { maxLength: 2000 });
     const mapFile = req.file;
     
 
@@ -52,6 +195,12 @@ router.post('/upload', upload.single('mapFile'), (req, res) => {
     // Validate required fields
     if (!mapName || !mapFile) {
       return res.status(400).json({ error: 'Map name and file are required' });
+    }
+
+    // Reject unsafe SVGs
+    if (!isSafeSvgFile(mapFile.path)) {
+      try { fs.unlinkSync(mapFile.path); } catch {}
+      return res.status(400).json({ error: 'Unsafe SVG content detected' });
     }
 
     // For now, use user ID 1 (admin) - in real app, get from auth
@@ -232,25 +381,53 @@ router.delete('/areas/:id', (req, res) => {
 
     const area = areas[0];
 
-    // Delete the map file if it exists
-    if (area.map_file_path) {
-      const filePath = path.join(__dirname, '../uploads/maps', area.map_file_path);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
+    // 1) Delete child records: overrides and schedules for shades in this area
+    const deleteOverrides = `DELETE FROM manual_overrides WHERE shade_id IN (SELECT id FROM shades WHERE area_id = ?)`;
+    const deleteSchedules = `DELETE FROM schedules WHERE shade_id IN (SELECT id FROM shades WHERE area_id = ?)`;
+    const deleteShades = `DELETE FROM shades WHERE area_id = ?`;
 
-    // Delete the area (cascade will handle related records)
-    const deleteQuery = 'DELETE FROM areas WHERE id = ?';
-    
-    connection.query(deleteQuery, [areaId], (err) => {
+    connection.query(deleteOverrides, [areaId], (err) => {
       if (err) {
-        console.error('Error deleting area:', err);
-        res.status(500).json({ error: 'Failed to delete area' });
+        console.error('Error deleting overrides for area:', err);
+        res.status(500).json({ error: 'Failed to delete overrides' });
         return;
       }
 
-      res.json({ message: 'Area and map deleted successfully' });
+      connection.query(deleteSchedules, [areaId], (err) => {
+        if (err) {
+          console.error('Error deleting schedules for area:', err);
+          res.status(500).json({ error: 'Failed to delete schedules' });
+          return;
+        }
+
+        connection.query(deleteShades, [areaId], (err) => {
+          if (err) {
+            console.error('Error deleting shades for area:', err);
+            res.status(500).json({ error: 'Failed to delete shades' });
+            return;
+          }
+
+          // 2) Delete the map file if it exists
+          if (area.map_file_path) {
+            const filePath = path.join(__dirname, '../uploads/maps', area.map_file_path);
+            if (fs.existsSync(filePath)) {
+              try { fs.unlinkSync(filePath); } catch (e) { console.error('Failed to delete map file:', e); }
+            }
+          }
+
+          // 3) Delete the area row
+          const deleteArea = 'DELETE FROM areas WHERE id = ?';
+          connection.query(deleteArea, [areaId], (err) => {
+            if (err) {
+              console.error('Error deleting area:', err);
+              res.status(500).json({ error: 'Failed to delete area' });
+              return;
+            }
+
+            res.json({ message: 'Area and related records deleted successfully' });
+          });
+        });
+      });
     });
   });
 });

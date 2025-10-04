@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 
@@ -6,10 +6,26 @@ const AddAlert = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     description: '',
-    location: '',
     priority: 'Medium'
   });
+  const [areas, setAreas] = useState([]);
+  const [locationMode, setLocationMode] = useState('area'); // 'area' | 'custom'
+  const [selectedAreaId, setSelectedAreaId] = useState('');
+  const [customLocation, setCustomLocation] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadAreas = async () => {
+      try {
+        const res = await fetch('http://localhost:3001/api/maps/areas');
+        if (res.ok) {
+          const data = await res.json();
+          setAreas(data);
+        }
+      } catch {}
+    };
+    loadAreas();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -24,13 +40,29 @@ const AddAlert = () => {
     setLoading(true);
 
     try {
+      // Resolve location based on mode
+      let locationValue = '';
+      if (locationMode === 'area') {
+        const area = areas.find(a => String(a.id) === String(selectedAreaId));
+        locationValue = area ? (area.map_name || `Area ${area.id}`) : '';
+      } else {
+        locationValue = customLocation.trim();
+      }
+
+      if (!locationValue) {
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('http://localhost:3001/api/alerts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...formData,
+          description: formData.description,
+          location: locationValue,
+          priority: formData.priority,
           status: 'active',
           created_by_user_id: 1 // Default user ID, you can make this dynamic later
         }),
@@ -83,19 +115,41 @@ const AddAlert = () => {
 
 
           <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-              Location Description *
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Location *
             </label>
-            <input
-              type="text"
-              id="location"
-              name="location"
-              value={formData.location}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., Building 1, Room 203"
-            />
+            <div className="flex items-center space-x-3 mb-3">
+              <label className="inline-flex items-center space-x-1 text-sm">
+                <input type="radio" name="locmode" value="area" checked={locationMode==='area'} onChange={() => setLocationMode('area')} />
+                <span>From Areas</span>
+              </label>
+              <label className="inline-flex items-center space-x-1 text-sm">
+                <input type="radio" name="locmode" value="custom" checked={locationMode==='custom'} onChange={() => setLocationMode('custom')} />
+                <span>Custom</span>
+              </label>
+            </div>
+            {locationMode === 'area' ? (
+              <select
+                value={selectedAreaId}
+                onChange={(e) => setSelectedAreaId(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="" disabled>Select an area…</option>
+                {areas.map(a => (
+                  <option key={a.id} value={a.id}>{a.map_name || `Area ${a.id}`}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={customLocation}
+                onChange={(e) => setCustomLocation(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g., Building 1, Room 203"
+              />
+            )}
           </div>
 
           <div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sun, Moon, Settings, AlertTriangle, CheckCircle, XCircle, Blinds, Umbrella, Building, Home, VenetianMask, Trash2, CalendarPlus, Clock, Calendar, X } from 'lucide-react';
 
-const ShadeControlPanel = ({ area, shades, onShadeUpdate, user }) => {
+const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = false }) => {
   const [overrides, setOverrides] = useState({});
   const [loading, setLoading] = useState({});
   const [schedules, setSchedules] = useState({});
