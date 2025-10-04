@@ -13,14 +13,31 @@ const Home = () => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Function to refresh alerts data
+  // Function to refresh alerts, activity log, and metrics
   const refreshAlerts = async () => {
     try {
-      const alertsRes = await fetch('http://localhost:3001/api/dashboard/alerts');
+      // Refresh alerts, activities, and metrics in parallel
+      const [alertsRes, activitiesRes, metricsRes] = await Promise.all([
+        fetch('http://localhost:3001/api/dashboard/alerts'),
+        fetch('http://localhost:3001/api/dashboard/activities'),
+        fetch('http://localhost:3001/api/dashboard/metrics')
+      ]);
+      
       const alertsData = await alertsRes.json();
+      const activitiesData = await activitiesRes.json();
+      const metricsData = await metricsRes.json();
+      
+      // Transform metrics data to include icon components
+      const transformedMetrics = metricsData.map(metric => ({
+        ...metric,
+        icon: getIconComponent(metric.icon)
+      }));
+      
       setAlerts(alertsData);
+      setActivities(activitiesData);
+      setMetrics(transformedMetrics);
     } catch {
-      // Error refreshing alerts
+      // Error refreshing data
     }
   };
 

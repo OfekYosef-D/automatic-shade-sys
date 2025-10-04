@@ -37,9 +37,14 @@ router.get('/metrics', (req, res) => {
 // GET active alerts (includes both active and acknowledged)
 router.get('/alerts', (req, res) => {
     const query = `
-        SELECT a.*, u.name as created_by_name
+        SELECT 
+            a.*, 
+            u1.name as created_by_name,
+            u2.name as assigned_to_name,
+            u2.role as assigned_to_role
         FROM alerts a
-        LEFT JOIN users u ON a.created_by_user_id = u.id
+        LEFT JOIN users u1 ON a.created_by_user_id = u1.id
+        LEFT JOIN users u2 ON a.assigned_to_user_id = u2.id
         WHERE a.status IN ('active', 'acknowledged')
         ORDER BY 
             FIELD(a.status, 'active', 'acknowledged'),
@@ -57,17 +62,37 @@ router.get('/alerts', (req, res) => {
     });
 });
 
-// GET activity log
+// GET activity log with filters
 router.get('/activities', (req, res) => {
+    const limit = req.query.limit ? Math.min(Number(req.query.limit), 50) : 10;
+    const typeFilter = req.query.type || null;
+    const userFilter = req.query.user_id ? Number(req.query.user_id) : null;
+    
+    let whereClause = '';
+    const params = [];
+    
+    if (typeFilter) {
+        whereClause = 'WHERE al.type = ?';
+        params.push(typeFilter);
+    }
+    
+    if (userFilter) {
+        whereClause = whereClause ? `${whereClause} AND al.user_id = ?` : 'WHERE al.user_id = ?';
+        params.push(userFilter);
+    }
+    
     const query = `
-        SELECT al.*, u.name as user_name
+        SELECT al.*, u.name as user_name, u.role as user_role
         FROM activity_log al
         LEFT JOIN users u ON al.user_id = u.id
+        ${whereClause}
         ORDER BY al.created_at DESC
-        LIMIT 5
+        LIMIT ?
     `;
     
-    connection.query(query, (err, results) => {
+    params.push(limit);
+    
+    connection.query(query, params, (err, results) => {
         if (err) {
             console.error('Error fetching activities:', err);
             res.status(500).send('Error fetching activities');

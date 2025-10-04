@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 const connection = require('../db');
+const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Helpers: sanitize and validate
 function sanitizeString(input, { maxLength = 1000 } = {}) {
@@ -77,7 +78,7 @@ const upload = multer({
 });
 
 // Update area metadata (name/description/building/floor/room info)
-router.put('/areas/:id', (req, res) => {
+router.put('/areas/:id', authenticateToken, requireRole('admin'), (req, res) => {
   const areaId = req.params.id;
   const map_name = sanitizeString(req.body.map_name, { maxLength: 255 });
   const map_description = sanitizeString(req.body.map_description, { maxLength: 2000 });
@@ -127,7 +128,7 @@ router.put('/areas/:id', (req, res) => {
 });
 
 // Replace area map file
-router.put('/areas/:id/map', upload.single('mapFile'), (req, res) => {
+router.put('/areas/:id/map', authenticateToken, requireRole('admin'), upload.single('mapFile'), (req, res) => {
   const areaId = req.params.id;
   const mapFile = req.file;
 
@@ -178,7 +179,7 @@ router.put('/areas/:id/map', upload.single('mapFile'), (req, res) => {
 });
 
 // Upload a new map and create area
-router.post('/upload', upload.single('mapFile'), (req, res) => {
+router.post('/upload', authenticateToken, requireRole('admin'), upload.single('mapFile'), (req, res) => {
   try {
     const mapName = sanitizeString(req.body.mapName, { maxLength: 255 });
     const mapDescription = sanitizeString(req.body.mapDescription, { maxLength: 2000 });
@@ -203,8 +204,8 @@ router.post('/upload', upload.single('mapFile'), (req, res) => {
       return res.status(400).json({ error: 'Unsafe SVG content detected' });
     }
 
-    // For now, use user ID 1 (admin) - in real app, get from auth
-    const userId = 1;
+    // Use authenticated user from JWT
+    const userId = req.user.id;
 
     // Insert new area with map data
     const query = `
@@ -362,7 +363,7 @@ router.get('/files/:filename', (req, res) => {
 });
 
 // Delete an area and its map
-router.delete('/areas/:id', (req, res) => {
+router.delete('/areas/:id', authenticateToken, requireRole('admin'), (req, res) => {
   const areaId = req.params.id;
   
   // Get area info to delete the file

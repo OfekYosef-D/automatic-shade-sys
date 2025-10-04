@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const connection = require('../db');
+const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Helpers
 function sanitizeString(input, { maxLength = 2000 } = {}) {
@@ -13,12 +14,12 @@ function sanitizeString(input, { maxLength = 2000 } = {}) {
 }
 
 // POST - Create a new alert
-router.post('/', (req, res) => {
+router.post('/', authenticateToken, (req, res) => {
     const description = sanitizeString(req.body.description, { maxLength: 2000 });
     const location = sanitizeString(req.body.location, { maxLength: 200 });
     const priority = sanitizeString(req.body.priority, { maxLength: 10 });
     const status = sanitizeString(req.body.status, { maxLength: 20 }) || 'active';
-    const created_by_user_id = Number(req.body.created_by_user_id) || 1;
+    const created_by_user_id = req.user.id; // Use authenticated user from JWT
     
     // Validate required fields
     if (!description || !location || !priority) {
@@ -73,8 +74,45 @@ router.get('/', (req, res) => {
     });
 });
 
+// PATCH - Assign alert to user (auto-acknowledges)
+router.patch('/:alertId/assign', authenticateToken, requireRole('admin', 'maintenance'), (req, res) => {
+    const alertId = req.params.alertId;
+    const assignedToUserId = req.body.assigned_to_user_id ? Number(req.body.assigned_to_user_id) : null;
+    
+    // When assigning, auto-acknowledge (assignment = taking ownership)
+    const newStatus = assignedToUserId ? 'acknowledged' : 'active';
+    const updateQuery = 'UPDATE alerts SET assigned_to_user_id = ?, status = ? WHERE id = ?';
+    
+    connection.query(updateQuery, [assignedToUserId, newStatus, alertId], (err, result) => {
+        if (err) {
+            console.error('Error assigning alert:', err);
+            return res.status(500).json({ error: 'Error assigning alert' });
+        }
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Alert not found' });
+        }
+        
+        // Log the assignment
+        if (assignedToUserId) {
+            const logQuery = `
+                INSERT INTO activity_log (type, description, time_description, user_id)
+                VALUES ('alert', ?, 'Just now', ?)
+            `;
+            connection.query(logQuery, [`Alert ${alertId} assigned and acknowledged`, req.user.id], () => {});
+        }
+        
+        res.json({ 
+            message: 'Alert assigned successfully', 
+            alertId, 
+            assigned_to_user_id: assignedToUserId,
+            status: newStatus
+        });
+    });
+});
+
 // PATCH - Update alert status
-router.patch('/:alertId/status', (req, res) => {
+router.patch('/:alertId/status', authenticateToken, requireRole('admin', 'maintenance'), (req, res) => {
     const alertId = req.params.alertId;
     const status = sanitizeString(req.body.status, { maxLength: 20 });
     const resolution_notes = sanitizeString(req.body.resolution_notes, { maxLength: 500 });
@@ -106,14 +144,14 @@ router.patch('/:alertId/status', (req, res) => {
         // Log the activity
         const logQuery = `
             INSERT INTO activity_log (type, description, time_description, user_id)
-            VALUES ('alert', ?, 'Just now', 1)
+            VALUES ('alert', ?, 'Just now', ?)
         `;
         
         const statusText = status === 'resolved' ? 'resolved' : 
                           status === 'acknowledged' ? 'acknowledged' : 'reactivated';
         const logDescription = `Alert ${alertId} ${statusText}${resolution_notes ? ` - ${resolution_notes}` : ''}`;
         
-        connection.query(logQuery, [logDescription], (err) => {
+        connection.query(logQuery, [logDescription, req.user.id], (err) => {
             if (err) {
                 console.error('Error logging activity:', err);
             }
@@ -128,7 +166,7 @@ router.patch('/:alertId/status', (req, res) => {
 });
 
 // DELETE - Delete an alert
-router.delete('/:alertId', (req, res) => {
+router.delete('/:alertId', authenticateToken, requireRole('admin', 'maintenance'), (req, res) => {
     const alertId = req.params.alertId;
     
     // First, get the alert info for logging
@@ -165,12 +203,12 @@ router.delete('/:alertId', (req, res) => {
             // Log the activity
             const logQuery = `
                 INSERT INTO activity_log (type, description, time_description, user_id)
-                VALUES ('alert', ?, 'Just now', 1)
+                VALUES ('alert', ?, 'Just now', ?)
             `;
             
             const logDescription = `Alert deleted: ${alertInfo.description} (${alertInfo.priority}) from ${alertInfo.location}`;
             
-            connection.query(logQuery, [logDescription], (err) => {
+            connection.query(logQuery, [logDescription, req.user.id], (err) => {
                 if (err) {
                     console.error('Error logging activity:', err);
                 }

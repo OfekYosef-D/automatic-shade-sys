@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
+const { startScheduler } = require('./scheduler');
 
 const app = express();
 
@@ -10,6 +11,7 @@ app.use(cors({
   origin: 'http://localhost:5173',
 }));
 
+const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const dashboardRouter = require('./routes/dashboard');
 const alertsRouter = require('./routes/alerts');
@@ -17,6 +19,7 @@ const shadesRouter = require('./routes/shades');
 const mapsRouter = require('./routes/maps');
 const schedulesRouter = require('./routes/schedules');
 
+app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/alerts', alertsRouter);
@@ -46,4 +49,10 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT);
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  
+  // Start the automatic scheduler
+  startScheduler();
+  console.log('✅ Automatic schedule execution enabled');
+});

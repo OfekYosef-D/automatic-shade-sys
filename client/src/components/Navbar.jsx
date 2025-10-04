@@ -4,8 +4,8 @@
 // wristband (their "role") and show them the correct menu of options available only to them.
 
 import React, { useState } from 'react';
-// We're importing some nice-looking icons (hamburger menu and 'X') for our mobile view.
-import { Menu, X } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { Menu, X, LogOut } from 'lucide-react';
 
 // This is the "Master Menu" for our entire app.
 // It's like a list of all possible menus for all possible types of guests.
@@ -57,8 +57,13 @@ const NavLink = ({ name, href, isActive }) => (
 // 1. `user`: The full object of the person who is logged in.
 // 2. `activePage`: The name of the page the user is currently looking at.
 const Navbar = ({ user, activePage }) => {
-  // We give the Navbar a "memory" to know if the mobile menu is open or closed.
+  const { logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    window.location.href = '/login';
+  };
 
   // SAFETY CHECK: If no one is logged in (`user` is null), we show a simple, empty version of the Navbar.
   if (!user) {
@@ -79,8 +84,6 @@ const Navbar = ({ user, activePage }) => {
   // If a user *is* logged in, we continue...
   // We look up the user's role in our "Master Menu" to get the correct list of links for them.
   const links = navLinksConfig[user.role] || []; // If the role is weird, default to an empty list.
-  // We get the first letter of the user's name to display in their profile icon.
-  const userInitial = user.name ? user.name.charAt(0).toUpperCase() : '?';
 
   // Now, we build the full Navbar with all its parts.
   return (
@@ -102,14 +105,26 @@ const Navbar = ({ user, activePage }) => {
             </ul>
           </div>
 
-          {/* Right Side: Profile Icon and Mobile Menu Button */}
-          <div className="flex items-center">
-            
+          {/* Right Side: User info and Mobile Menu Button */}
+          <div className="flex items-center gap-4">
+            {/* User info and logout */}
+            <div className="hidden md:flex items-center gap-3">
+              <div className="text-sm text-right">
+                <p className="font-medium text-gray-900">{user.name}</p>
+                <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                title="Logout"
+              >
+                <LogOut size={20} />
+              </button>
+            </div>
 
             {/* The mobile "hamburger" menu button */}
-            <div className="ml-3 md:hidden"> {/* This div ONLY appears on small (mobile) screens */}
-              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="...">
-                {/* We show the 'X' icon if the menu is open, or the 'hamburger' icon if it's closed. */}
+            <div className="md:hidden">
+              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-md">
                 {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
@@ -118,14 +133,21 @@ const Navbar = ({ user, activePage }) => {
       </div>
 
       {/* The Dropdown Mobile Menu Itself */}
-      {/* This entire block of code ONLY appears if `isMobileMenuOpen` is true. */}
       {isMobileMenuOpen && (
-        <div className="md:hidden"> {/* It's also hidden on desktop screens */}
+        <div className="md:hidden">
           <ul className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {/* We show the same list of links, but styled for a mobile dropdown. */}
             {links.map((link) => (
               <NavLink key={link.name} {...link} isActive={activePage === link.name} />
             ))}
+            <li className="pt-2 border-t border-gray-200">
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
+            </li>
           </ul>
         </div>
       )}

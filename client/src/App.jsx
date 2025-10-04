@@ -17,6 +17,7 @@ import { useAuth } from './hooks/useAuth';
 import Home from './pages/Home'; // The main "lobby" page.
 import AddAlert from './pages/AddAlert'; // The "add alert" page.
 import Areas from './pages/Areas'; // The "areas" page.
+import Login from './pages/Login'; // The login page.
 import Navbar from './components/Navbar'; // The "VIP Section Manager" component.
 
 // This is a small helper tool.
@@ -34,27 +35,39 @@ const getActivePage = (pathname) => {
 // Think of this as the "Club's Floor Plan". Every room will have the same fancy entrance (the Navbar)
 // and the same wallpaper.
 const AppLayout = () => {
-  // We use our "Walkie-Talkie" (`useAuth`) to instantly get the current user's information.
-  // We only need the `user` object from what the walkie-talkie gives us.
-  const { user } = useAuth(); 
-
-  // `useLocation` is a tool from the router library that tells us the current web address.
+  const { user, loading } = useAuth(); 
   const location = useLocation();
-  // We use our helper tool to figure out which page name to tell the Navbar.
   const activePage = getActivePage(location.pathname);
 
-  // Now we build the visual layout.
-  return (
-    // This is the main container for the whole screen.
-    <div className="min-h-screen bg-neutral-light text-neutral-dark">
-      {/* The Navbar is always at the top. We give it the `user` info and the `activePage` name
-          so it knows exactly what to display and which button to highlight. */}
-      <Navbar user={user} activePage={activePage} />
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
 
-      {/* The <main> section is where the content of each specific page will appear. */}
+  // If not logged in and not on login page, redirect to login
+  if (!user && location.pathname !== '/login') {
+    return <Routes><Route path="*" element={<Login />} /></Routes>;
+  }
+
+  // If logged in and on login page, redirect to home
+  if (user && location.pathname === '/login') {
+    return <Routes><Route path="*" element={<Home />} /></Routes>;
+  }
+
+  // Login page (no navbar)
+  if (location.pathname === '/login') {
+    return <Routes><Route path="/login" element={<Login />} /></Routes>;
+  }
+
+  // Regular authenticated layout
+  return (
+    <div className="min-h-screen bg-neutral-light text-neutral-dark">
+      <Navbar user={user} activePage={activePage} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* The <Routes> component is like a "Door Manager". It looks at the web address
-            and shows ONLY the page that matches. */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/add-alert" element={<AddAlert />} />

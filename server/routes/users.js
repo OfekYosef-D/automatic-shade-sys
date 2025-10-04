@@ -19,7 +19,19 @@ function isValidEmail(email) {
 
 // GET all users
 router.get('/', (req, res) => {
-    connection.query('SELECT * FROM users', (err, results) => {
+    const roleFilter = req.query.role || null;
+    
+    let query = 'SELECT id, name, email, role FROM users';
+    const params = [];
+    
+    if (roleFilter) {
+        query += ' WHERE role = ?';
+        params.push(roleFilter);
+    }
+    
+    query += ' ORDER BY name';
+    
+    connection.query(query, params, (err, results) => {
         if (err) {
             console.error('Error fetching users:', err);
             res.status(500).send('Error fetching users');

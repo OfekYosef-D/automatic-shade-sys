@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { getAuthHeaders } from '../utils/api';
 
 const AddAlert = () => {
   const navigate = useNavigate();
@@ -56,15 +57,12 @@ const AddAlert = () => {
 
       const response = await fetch('http://localhost:3001/api/alerts', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           description: formData.description,
           location: locationValue,
           priority: formData.priority,
-          status: 'active',
-          created_by_user_id: 1 // Default user ID, you can make this dynamic later
+          status: 'active'
         }),
       });
 
@@ -133,11 +131,14 @@ const AddAlert = () => {
                 value={selectedAreaId}
                 onChange={(e) => setSelectedAreaId(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full text-sm px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               >
-                <option value="" disabled>Select an area…</option>
+                <option value="" disabled>📍 Select an area…</option>
                 {areas.map(a => (
-                  <option key={a.id} value={a.id}>{a.map_name || `Area ${a.id}`}</option>
+                  <option key={a.id} value={a.id}>
+                    🗺️ {a.map_name || `Area ${a.id}`}
+                    {a.building_number ? ` - Building ${a.building_number}` : ''}
+                  </option>
                 ))}
               </select>
             ) : (
