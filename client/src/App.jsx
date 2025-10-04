@@ -15,7 +15,6 @@ import { useAuth } from './hooks/useAuth';
 
 // Import the main parts of our club.
 import Home from './pages/Home'; // The main "lobby" page.
-import Users from './pages/Users'; // The "users" page.
 import AddAlert from './pages/AddAlert'; // The "add alert" page.
 import Areas from './pages/Areas'; // The "areas" page.
 import Navbar from './components/Navbar'; // The "VIP Section Manager" component.
@@ -26,7 +25,6 @@ import Navbar from './components/Navbar'; // The "VIP Section Manager" component
 const getActivePage = (pathname) => {
     if (pathname === '/') return 'Dashboard';
     if (pathname.startsWith('/areas')) return 'Areas';
-    if (pathname.startsWith('/users')) return 'Users';
     return ''; // If we don't recognize the page, highlight nothing.
 };
 
@@ -59,10 +57,8 @@ const AppLayout = () => {
             and shows ONLY the page that matches. */}
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/users" element={<Users />} />
           <Route path="/add-alert" element={<AddAlert />} />
           <Route path="/areas" element={<Areas />} />
-          {/* We will add more "rooms" (Routes) here later. */}
         </Routes>
       </main>
     </div>

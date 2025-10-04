@@ -62,7 +62,7 @@ npm run dev
   - Metrics, active alerts, recent activity log
 
 ## Routes Kept for Submission
-- Frontend pages: `/` (Dashboard), `/areas`, `/users`
+- Frontend pages: `/` (Dashboard), `/areas`, `/add-alert`
 - Backend routes: `/api/maps`, `/api/shades`, `/api/alerts`, `/api/dashboard`, `/api/users`
 
 ## Security & Validation

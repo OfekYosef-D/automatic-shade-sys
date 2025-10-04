@@ -13,7 +13,7 @@ router.get('/metrics', (req, res) => {
         UNION ALL
         SELECT 
             'Active Alerts' as title,
-            (SELECT COUNT(*) FROM alerts WHERE status = 'active') as value,
+            (SELECT COUNT(*) FROM alerts WHERE status IN ('active', 'acknowledged')) as value,
             'red' as color,
             'AlertTriangle' as icon
         UNION ALL
@@ -34,14 +34,17 @@ router.get('/metrics', (req, res) => {
     });
 });
 
-// GET active alerts
+// GET active alerts (includes both active and acknowledged)
 router.get('/alerts', (req, res) => {
     const query = `
         SELECT a.*, u.name as created_by_name
         FROM alerts a
         LEFT JOIN users u ON a.created_by_user_id = u.id
-        WHERE a.status = 'active'
-        ORDER BY a.priority DESC, a.created_at DESC
+        WHERE a.status IN ('active', 'acknowledged')
+        ORDER BY 
+            FIELD(a.status, 'active', 'acknowledged'),
+            a.priority DESC, 
+            a.created_at DESC
     `;
     
     connection.query(query, (err, results) => {

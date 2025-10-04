@@ -14,7 +14,6 @@ const navLinksConfig = {
   admin: [
   { name: 'Dashboard', href: '/' },
   { name: 'Areas', href: '/areas' },
-  { name: 'Users', href: '/users' },
   ],
   maintenance: [
   { name: 'Dashboard', href: '/' },
