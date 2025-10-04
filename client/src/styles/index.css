@@ -12,3 +12,15 @@
 
   --font-family-sans: "Inter", sans-serif;
 }
+
+/* Make all obvious interactive elements show a pointer cursor */
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+label[for],
+a[href],
+[role="button"],
+.clickable {
+  cursor: pointer;
+}

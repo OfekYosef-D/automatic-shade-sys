@@ -8,9 +8,12 @@ dist-ssr/
 # Logs
 *.log
 
-# Environment variables (if you add them later)
+# Environment variables
 .env
 .env.local
+
+# Uploaded files (runtime generated)
+server/uploads/
 
 # OS files
 .DS_Store
