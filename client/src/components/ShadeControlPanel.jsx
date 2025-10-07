@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Sun, Moon, Settings, AlertTriangle, CheckCircle, XCircle, Blinds, Umbrella, Building, Home, VenetianMask, Trash2, CalendarPlus, Clock, Calendar, X } from 'lucide-react';
+import { getAuthHeaders } from '../utils/api';
 
-const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = false }) => {
+const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = false, allowSchedules = false }) => {
   const [overrides, setOverrides] = useState({});
   const [loading, setLoading] = useState({});
   const [schedules, setSchedules] = useState({});
@@ -15,7 +16,9 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
   // Fetch schedules for a specific shade
   const fetchSchedules = async (shadeId) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/schedules/shade/${shadeId}`);
+      const response = await fetch(`/api/schedules/shade/${shadeId}`, {
+        headers: getAuthHeaders()
+      });
       if (response.ok) {
         const data = await response.json();
         setSchedules(prev => ({ ...prev, [shadeId]: data }));
@@ -55,20 +58,35 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     const formData = scheduleFormData[shadeId];
     if (!formData) return;
 
+    // Validate form data
+    if (!formData.name || !formData.name.trim()) {
+      alert('Please enter a schedule name');
+      return;
+    }
+
+    if (!formData.startTime || !formData.endTime) {
+      alert('Please enter both start and end times');
+      return;
+    }
+
+    if (formData.startTime >= formData.endTime) {
+      alert('End time must be after start time');
+      return;
+    }
+
     setLoading(prev => ({ ...prev, [shadeId]: true }));
     
     try {
-      const response = await fetch('http://localhost:3001/api/schedules', {
+      const response = await fetch('/api/schedules', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           shade_id: shadeId,
-          name: formData.name,
+          name: formData.name.trim(),
           day_of_week: formData.dayOfWeek,
           start_time: formData.startTime,
           end_time: formData.endTime,
-          target_position: formData.targetPosition,
-          created_by_user_id: user.id
+          target_position: formData.targetPosition
         })
       });
 
@@ -78,11 +96,47 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
         if (onShadeUpdate) {
           onShadeUpdate(area.id);
         }
+        // Show success message
+        if (window.toast) {
+          window.toast.success('Schedule created successfully');
+        }
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to create schedule');
       }
     } catch (error) {
       console.error('Error creating schedule:', error);
+      alert('Network error - please try again');
     } finally {
       setLoading(prev => ({ ...prev, [shadeId]: false }));
+    }
+  };
+
+  // Toggle schedule active/inactive
+  const handleToggleSchedule = async (scheduleId, shadeId) => {
+    try {
+      const response = await fetch(`/api/schedules/${scheduleId}/toggle`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        fetchSchedules(shadeId);
+        if (onShadeUpdate) {
+          onShadeUpdate(area.id);
+        }
+        // Show success message
+        if (window.toast) {
+          window.toast.success(data.message);
+        }
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to toggle schedule');
+      }
+    } catch (error) {
+      console.error('Error toggling schedule:', error);
+      alert('Network error - please try again');
     }
   };
 
@@ -93,8 +147,9 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     }
 
     try {
-      const response = await fetch(`http://localhost:3001/api/schedules/${scheduleId}`, {
-        method: 'DELETE'
+      const response = await fetch(`/api/schedules/${scheduleId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (response.ok) {
@@ -102,9 +157,17 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
         if (onShadeUpdate) {
           onShadeUpdate(area.id);
         }
+        // Show success message
+        if (window.toast) {
+          window.toast.success('Schedule deleted successfully');
+        }
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to delete schedule');
       }
     } catch (error) {
       console.error('Error deleting schedule:', error);
+      alert('Network error - please try again');
     }
   };
 
@@ -135,16 +198,13 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     setLoading(prev => ({ ...prev, [shadeId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:3001/api/shades/shades/${shadeId}/override`, {
+      const response = await fetch(`/api/shades/shades/${shadeId}/override`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           override_type: 'partial',
           position: newPosition,
-          reason: 'Manual adjustment',
-          user_id: user.id
+          reason: 'Manual adjustment'
         }),
       });
 
@@ -194,16 +254,13 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     setLoading(prev => ({ ...prev, [shadeId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:3001/api/shades/shades/${shadeId}/override`, {
+      const response = await fetch(`/api/shades/shades/${shadeId}/override`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           override_type: overrideType,
           position: position,
-          reason: reason,
-          user_id: user.id
+          reason: reason
         }),
       });
 
@@ -236,8 +293,9 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     setLoading(prev => ({ ...prev, [shadeId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:3001/api/shades/shades/${shadeId}`, {
+      const response = await fetch(`/api/shades/shades/${shadeId}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (response.ok) {
@@ -252,6 +310,30 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
       }
     } catch {
       // Error deleting device
+    } finally {
+      setLoading(prev => ({ ...prev, [shadeId]: false }));
+    }
+  };
+
+  const handleStatusChange = async (shadeId, newStatus) => {
+    if (!user) return;
+    
+    setLoading(prev => ({ ...prev, [shadeId]: true }));
+    
+    try {
+      const response = await fetch(`/api/shades/shades/${shadeId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        if (onShadeUpdate) {
+          onShadeUpdate(area.id);
+        }
+      }
+    } catch {
+      // Error updating status
     } finally {
       setLoading(prev => ({ ...prev, [shadeId]: false }));
     }
@@ -307,19 +389,59 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
         <div className="space-y-4">
           {shades.map((shade) => (
             <div key={shade.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">{getShadeIcon(shade.type)}</span>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{shade.description}</h3>
+              <div className="flex items-start justify-between mb-4 gap-4">
+                <div className="flex items-start space-x-3 flex-1 min-w-0">
+                  <span className="text-2xl flex-shrink-0">{getShadeIcon(shade.type)}</span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 break-words">{shade.description}</h3>
                     <p className="text-sm text-gray-500 capitalize">{shade.type}</p>
                   </div>
                 </div>
-                <div className={`flex items-center space-x-2 ${getStatusColor(shade.status)}`}>
-                  {getStatusIcon(shade.status)}
-                  <span className="text-sm font-medium capitalize">{shade.status.replace('_', ' ')}</span>
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <div className={`flex items-center space-x-2 ${getStatusColor(shade.status)} mb-2`}>
+                    {getStatusIcon(shade.status)}
+                    <span className="text-sm font-medium capitalize whitespace-nowrap">{shade.status.replace('_', ' ')}</span>
+                  </div>
+                  {(user?.role === 'admin' || user?.role === 'maintenance') && (
+                    <div className="relative">
+                      <select
+                        aria-label="Device status"
+                        value={shade.status}
+                        onChange={(e) => handleStatusChange(shade.id, e.target.value)}
+                        disabled={loading[shade.id]}
+                        className="text-xs border border-gray-300 rounded-md px-3 py-2 pr-8 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-wait transition-all appearance-none"
+                        style={{backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.5rem center", backgroundRepeat: "no-repeat", backgroundSize: "1.5em 1.5em"}}
+                      >
+                        <option value="active">✅ Active</option>
+                        <option value="under_maintenance">🔧 Under Maintenance</option>
+                        <option value="inactive">❌ Inactive</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Status Warning */}
+              {shade.status !== 'active' && (
+                <div className={`mb-4 p-3 rounded-lg border ${
+                  shade.status === 'under_maintenance' 
+                    ? 'bg-yellow-50 border-yellow-200' 
+                    : 'bg-red-50 border-red-200'
+                }`}>
+                  <p className={`text-sm font-medium ${
+                    shade.status === 'under_maintenance' ? 'text-yellow-800' : 'text-red-800'
+                  }`}>
+                    {shade.status === 'under_maintenance' 
+                      ? '🔧 Device Under Maintenance' 
+                      : '❌ Device Inactive'}
+                  </p>
+                  <p className={`text-xs mt-1 ${
+                    shade.status === 'under_maintenance' ? 'text-yellow-700' : 'text-red-700'
+                  }`}>
+                    Controls are disabled until device is marked as active
+                  </p>
+                </div>
+              )}
 
               {/* Current Position Display */}
               <div className="mb-4">
@@ -404,7 +526,8 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
                 </div>
               )}
 
-              {/* Schedules Section */}
+              {/* Schedules Section - Only in Configure mode */}
+              {allowSchedules && (
               <div className="mt-4">
                 {/* Schedules List */}
                 {schedules[shade.id] && schedules[shade.id].length > 0 && (
@@ -416,15 +539,15 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
                     <div className="space-y-2">
                       {schedules[shade.id].map((schedule) => (
                         <div key={schedule.id} className="bg-gray-50 rounded-md p-3 flex items-center justify-between">
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
-                              <span className="font-medium text-sm text-gray-900">{schedule.name}</span>
-                              <span className={`px-2 py-1 text-xs rounded-full ${
+                              <span className="font-medium text-sm text-gray-900 truncate">{schedule.name}</span>
+                              <span className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
                                 schedule.is_active 
                                   ? 'bg-green-100 text-green-800' 
                                   : 'bg-gray-100 text-gray-600'
                               }`}>
-                                {schedule.is_active ? 'Active' : 'Inactive'}
+                                {schedule.is_active ? '✓ Active' : '○ Paused'}
                               </span>
                             </div>
                             <div className="text-xs text-gray-600 mt-1">
@@ -437,13 +560,35 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
                               </span>
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteSchedule(schedule.id, shade.id)}
-                            className="ml-2 p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded"
-                            title="Delete schedule"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
+                            <button
+                              onClick={() => handleToggleSchedule(schedule.id, shade.id)}
+                              className={`p-1.5 rounded transition-colors ${
+                                schedule.is_active
+                                  ? 'text-amber-600 hover:bg-amber-100'
+                                  : 'text-green-600 hover:bg-green-100'
+                              }`}
+                              title={schedule.is_active ? 'Pause schedule' : 'Enable schedule'}
+                            >
+                              {schedule.is_active ? (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSchedule(schedule.id, shade.id)}
+                              className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+                              title="Delete schedule"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -490,18 +635,22 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
                         onInput={(e) => e.target.setCustomValidity('')}
                       />
                       
-                      <select
-                        value={scheduleFormData[shade.id]?.dayOfWeek || 'daily'}
-                        onChange={(e) => handleScheduleInputChange(shade.id, 'dayOfWeek', e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        lang="en"
-                      >
-                        {days.map(day => (
-                          <option key={day} value={day}>
-                            {formatDayOfWeek(day)}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <select
+                          aria-label="Schedule day of week"
+                          value={scheduleFormData[shade.id]?.dayOfWeek || 'daily'}
+                          onChange={(e) => handleScheduleInputChange(shade.id, 'dayOfWeek', e.target.value)}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
+                          style={{backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.5rem center", backgroundRepeat: "no-repeat", backgroundSize: "1.5em 1.5em"}}
+                          lang="en"
+                        >
+                          {days.map(day => (
+                            <option key={day} value={day}>
+                              {formatDayOfWeek(day)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       
                       <div className="flex space-x-2">
                         <input
@@ -560,18 +709,21 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
                   </div>
                 )}
               </div>
+              )}
 
               {/* Delete Device Button */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => handleDeleteDevice(shade.id)}
-                  disabled={loading[shade.id]}
-                  className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Device
-                </button>
-              </div>
+              {allowDelete && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => handleDeleteDevice(shade.id)}
+                    disabled={loading[shade.id]}
+                    className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Device
+                  </button>
+                </div>
+              )}
 
               {loading[shade.id] && (
                 <div className="mt-3 text-center">

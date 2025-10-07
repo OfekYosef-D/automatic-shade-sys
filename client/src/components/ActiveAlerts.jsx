@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
-import { MapPin, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, MoreVertical, AlertTriangle, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, MoreVertical, AlertTriangle, Trash2, UserCheck } from 'lucide-react';
+import { getAuthHeaders } from '../utils/api';
+import { useAuth } from '../hooks/useAuth';
 
 const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
+  const { user } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState(null);
@@ -10,9 +13,34 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [maintenanceUsers, setMaintenanceUsers] = useState([]);
+  const [assigningAlert, setAssigningAlert] = useState(null);
+  const [showMyAlertsOnly, setShowMyAlertsOnly] = useState(false);
+  
+  const canManageAlerts = user?.role === 'admin' || user?.role === 'maintenance';
+  
+  // Filter to show only alerts assigned to current user
+  const displayedAlerts = showMyAlertsOnly && user?.role === 'maintenance'
+    ? alerts.filter(a => a.assigned_to_user_id === user.id)
+    : alerts;
+  
+  const myAssignedCount = alerts.filter(a => a.assigned_to_user_id === user?.id).length;
+  
+  // Load maintenance users for assignment dropdown
+  useEffect(() => {
+    if (canManageAlerts) {
+      fetch('/api/users/maintenance', { headers: getAuthHeaders() })
+        .then(async (res) => {
+          if (!res.ok) return [];
+          try { return await res.json(); } catch { return []; }
+        })
+        .then(data => setMaintenanceUsers(Array.isArray(data) ? data : []))
+        .catch(() => setMaintenanceUsers([]));
+    }
+  }, [canManageAlerts]);
   
   const alertsPerPage = 3;
-  const totalPages = Math.ceil(alerts.length / alertsPerPage);
+  const totalPages = Math.ceil(displayedAlerts.length / alertsPerPage);
 
   // This function determines what color to use for priority badges
   const getPriorityColor = (priority) => {
@@ -48,7 +76,7 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
 
   const getCurrentAlerts = () => {
     const startIndex = currentIndex * alertsPerPage;
-    return alerts.slice(startIndex, startIndex + alertsPerPage);
+    return displayedAlerts.slice(startIndex, startIndex + alertsPerPage);
   };
 
   const handleStatusAction = (alert, action) => {
@@ -63,13 +91,35 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
     setShowDeleteModal(true);
   };
 
+  const handleAssignAlert = async (alertId, userId) => {
+    setAssigningAlert(alertId);
+    try {
+      const response = await fetch(`/api/alerts/${alertId}/assign`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ assigned_to_user_id: userId || null })
+      });
+
+      if (response.ok) {
+        if (onAlertUpdate) {
+          onAlertUpdate();
+        }
+      }
+    } catch {
+      // Error assigning alert
+    } finally {
+      setAssigningAlert(null);
+    }
+  };
+
   const deleteAlert = async () => {
     if (!selectedAlert) return;
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/alerts/${selectedAlert.id}`, {
+      const response = await fetch(`/api/alerts/${selectedAlert.id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (response.ok) {
@@ -99,11 +149,9 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
 
     setIsUpdating(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/alerts/${selectedAlert.id}/status`, {
+      const response = await fetch(`/api/alerts/${selectedAlert.id}/status`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           status: statusAction,
           resolution_notes: resolutionNotes.trim() || null
@@ -159,8 +207,20 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
           <div className="flex items-center space-x-3">
             <h3 className="text-lg font-semibold text-gray-900">Active Alerts</h3>
             <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-              {alerts.length}
+              {displayedAlerts.length}
             </span>
+            {user?.role === 'maintenance' && myAssignedCount > 0 && (
+              <button
+                onClick={() => setShowMyAlertsOnly(!showMyAlertsOnly)}
+                className={`text-xs px-3 py-1 rounded-full transition-colors ${
+                  showMyAlertsOnly 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                }`}
+              >
+                {showMyAlertsOnly ? 'Show All' : `My Alerts (${myAssignedCount})`}
+              </button>
+            )}
           </div>
           {totalPages > 1 && (
             <div className="flex items-center space-x-2">
@@ -226,6 +286,43 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
                               {new Date(alert.created_at).toLocaleDateString()} at {new Date(alert.created_at).toLocaleTimeString()}
                             </p>
                           )}
+                          {/* Assignment info */}
+                          {canManageAlerts && (
+                            <div className="mt-3">
+                              <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1.5">
+                                <UserCheck size={12} />
+                                Assign to:
+                              </label>
+                              <div className="relative">
+                                <select
+                                  aria-label="Assign alert to maintenance user"
+                                  value={alert.assigned_to_user_id || ''}
+                                  onChange={(e) => handleAssignAlert(alert.id, e.target.value)}
+                                  disabled={assigningAlert === alert.id}
+                                  className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 pr-8 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-wait transition-all appearance-none"
+                                  style={{backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.5rem center", backgroundRepeat: "no-repeat", backgroundSize: "1.5em 1.5em"}}
+                                >
+                                  <option value="">🔄 Unassigned</option>
+                                  {maintenanceUsers.map(u => (
+                                    <option key={u.id} value={u.id}>
+                                      {u.id === user.id ? '👤 Me (' : '👤 '}{u.name}{u.id === user.id ? ')' : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                                {assigningAlert === alert.id && (
+                                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {!canManageAlerts && alert.assigned_to_name && (
+                            <div className="mt-3 flex items-center gap-1.5 px-2 py-1.5 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-700">
+                              <UserCheck size={12} />
+                              <span>Assigned to <strong>{alert.assigned_to_name}</strong></span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -235,29 +332,31 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
                         {alert.priority}
                       </span>
                       
-                      <div className="flex items-center space-x-1">
-                        {alert.status === 'active' && (
+                      {canManageAlerts && (
+                        <div className="flex items-center space-x-1">
+                          {alert.status === 'active' && (
+                            <button
+                              onClick={() => handleStatusAction(alert, 'acknowledged')}
+                              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                              title="Manage Alert"
+                            >
+                              <MoreVertical size={16} />
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleStatusAction(alert, 'acknowledged')}
-                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-                            title="Manage Alert"
+                            onClick={() => handleDeleteAlert(alert)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                            title="Delete Alert"
                           >
-                            <MoreVertical size={16} />
+                            <Trash2 size={16} />
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteAlert(alert)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                          title="Delete Alert"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
-                  {/* Action buttons */}
-                  {alert.status === 'active' && (
+                  {/* Action buttons - only for admin/maintenance */}
+                  {canManageAlerts && alert.status === 'active' && (
                     <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
                       <button
                         onClick={() => handleStatusAction(alert, 'acknowledged')}
@@ -275,7 +374,7 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
                       </button>
                     </div>
                   )}
-                  {alert.status === 'acknowledged' && (
+                  {canManageAlerts && alert.status === 'acknowledged' && (
                     <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
                       <button
                         onClick={() => handleStatusAction(alert, 'resolved')}
@@ -284,6 +383,14 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
                         <CheckCircle size={12} />
                         Mark Resolved
                       </button>
+                    </div>
+                  )}
+                  {/* Info message for planners */}
+                  {!canManageAlerts && (
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      <p className="text-xs text-gray-500 italic">
+                        Only administrators and maintenance can manage alerts
+                      </p>
                     </div>
                   )}
                 </div>

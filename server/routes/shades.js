@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const connection = require('../db');
+const { authenticateToken, requireRole, checkAreaAccess } = require('../middleware/auth');
 
 // Helpers
 function sanitizeString(input, { maxLength = 255 } = {}) {
@@ -113,14 +114,14 @@ router.get('/shades', (req, res) => {
     });
 });
 
-// POST create new shade device
-router.post('/shades', (req, res) => {
+// POST create new shade device (admin/maintenance only)
+router.post('/shades', authenticateToken, requireRole('admin', 'maintenance'), (req, res) => {
     const area_id = Number(req.body.area_id);
     const description = sanitizeString(req.body.description, { maxLength: 100 });
     const type = sanitizeString(req.body.type, { maxLength: 20 });
     const current_position = Math.max(0, Math.min(100, Number(req.body.current_position || 0)));
     const target_position = Math.max(0, Math.min(100, Number(req.body.target_position || 0)));
-    const installed_by_user_id = Number(req.body.installed_by_user_id);
+    const installed_by_user_id = req.user.id; // Use authenticated user from JWT
     const x = req.body.x === null || req.body.x === undefined ? null : Math.trunc(Number(req.body.x));
     const y = req.body.y === null || req.body.y === undefined ? null : Math.trunc(Number(req.body.y));
     
@@ -144,7 +145,7 @@ router.post('/shades', (req, res) => {
         
         const logDescription = `New shade device installed: ${description} (${type}) in area ${area_id}`;
         
-        connection.query(logQuery, [logDescription, installed_by_user_id], (err) => {
+        connection.query(logQuery, [logDescription, req.user.id], (err) => {
             if (err) {
                 console.error('Error logging activity:', err);
             }
@@ -155,7 +156,8 @@ router.post('/shades', (req, res) => {
 });
 
 // PUT update shade fields (description, type, positions, coordinates)
-router.put('/shades/:shadeId', (req, res) => {
+// All authenticated users can update (planner can change positions)
+router.put('/shades/:shadeId', authenticateToken, (req, res) => {
     const shadeId = req.params.shadeId;
     const description = sanitizeString(req.body.description, { maxLength: 100 });
     const type = sanitizeString(req.body.type, { maxLength: 20 });
@@ -201,10 +203,55 @@ router.put('/shades/:shadeId', (req, res) => {
     );
 });
 
-// POST manual override for a shade
-router.post('/shades/:shadeId/override', (req, res) => {
+// POST manual override for a shade (all authenticated users, planners need area assignment)
+router.post('/shades/:shadeId/override', 
+    authenticateToken, 
+    checkAreaAccess((req) => {
+        // Need to get area_id from shade
+        // This will be checked in the route itself
+        return null; // Signal to skip check here, do it in route
+    }),
+    (req, res) => {
     const shadeId = req.params.shadeId;
-    const { override_type, position, reason, user_id } = req.body;
+    const { override_type, position, reason } = req.body;
+    const user_id = req.user.id; // Use authenticated user from JWT
+    
+    // First, check area access for planners
+    if (req.user.role === 'planner') {
+        const checkQuery = `
+            SELECT s.area_id 
+            FROM shades s 
+            LEFT JOIN area_assignments aa ON s.area_id = aa.area_id AND aa.user_id = ?
+            WHERE s.id = ?
+        `;
+        connection.query(checkQuery, [req.user.id, shadeId], (err, results) => {
+            if (err || results.length === 0 || !results[0].area_id) {
+                return res.status(403).json({ 
+                    error: 'Access denied: You are not assigned to control this device',
+                    requiredRole: 'admin or maintenance or assigned planner'
+                });
+            }
+            
+            // Check if planner has assignment
+            const areaCheckQuery = 'SELECT 1 FROM area_assignments WHERE user_id = ? AND area_id = ?';
+            connection.query(areaCheckQuery, [req.user.id, results[0].area_id], (err2, assigned) => {
+                if (err2 || assigned.length === 0) {
+                    return res.status(403).json({ 
+                        error: 'Access denied: You are not assigned to this area',
+                        requiredRole: 'admin or maintenance or assigned planner'
+                    });
+                }
+                
+                // Proceed with override logic
+                processOverride();
+            });
+        });
+    } else {
+        // Admin/Maintenance can proceed directly
+        processOverride();
+    }
+    
+    function processOverride() {
     
     // First, end any existing override for this shade
     const endOverrideQuery = `
@@ -255,7 +302,7 @@ router.post('/shades/:shadeId/override', (req, res) => {
                 
                 const logDescription = `Manual override: ${override_type} shade ${shadeId} to position ${position}`;
                 
-                connection.query(logQuery, [logDescription, user_id], (err) => {
+                connection.query(logQuery, [logDescription, req.user.id], (err) => {
                     if (err) {
                         console.error('Error logging activity:', err);
                     }
@@ -265,10 +312,11 @@ router.post('/shades/:shadeId/override', (req, res) => {
             });
         });
     });
+    } // End processOverride
 });
 
 // DELETE shade device
-router.delete('/shades/:shadeId', (req, res) => {
+router.delete('/shades/:shadeId', authenticateToken, requireRole('admin', 'maintenance'), (req, res) => {
     const shadeId = req.params.shadeId;
     
     // First, get the shade info for logging
@@ -324,12 +372,12 @@ router.delete('/shades/:shadeId', (req, res) => {
                     // Log the activity
                     const logQuery = `
                         INSERT INTO activity_log (type, description, time_description, user_id)
-                        VALUES ('maintenance', ?, 'Just now', 1)
+                        VALUES ('maintenance', ?, 'Just now', ?)
                     `;
                     
                     const logDescription = `Shade device deleted: ${shadeInfo.description} (${shadeInfo.type}) from area ${shadeInfo.area_id}`;
                     
-                    connection.query(logQuery, [logDescription], (err) => {
+                    connection.query(logQuery, [logDescription, req.user.id], (err) => {
                         if (err) {
                             console.error('Error logging activity:', err);
                         }
@@ -366,9 +414,10 @@ router.get('/shades/:shadeId/schedules', (req, res) => {
     });
 });
 
-// POST new schedule
-router.post('/schedules', (req, res) => {
-    const { shade_id, name, day_of_week, start_time, end_time, target_position, created_by_user_id } = req.body;
+// POST new schedule (all authenticated users can create schedules)
+router.post('/schedules', authenticateToken, (req, res) => {
+    const { shade_id, name, day_of_week, start_time, end_time, target_position } = req.body;
+    const created_by_user_id = req.user.id; // Use authenticated user from JWT
     
     const query = `
         INSERT INTO schedules (shade_id, name, day_of_week, start_time, end_time, target_position, created_by_user_id)
@@ -390,7 +439,7 @@ router.post('/schedules', (req, res) => {
         
         const logDescription = `New schedule created: ${name} for shade ${shade_id}`;
         
-        connection.query(logQuery, [logDescription, created_by_user_id], (err) => {
+        connection.query(logQuery, [logDescription, req.user.id], (err) => {
             if (err) {
                 console.error('Error logging activity:', err);
             }
@@ -400,8 +449,8 @@ router.post('/schedules', (req, res) => {
     });
 });
 
-// DELETE schedule
-router.delete('/schedules/:scheduleId', (req, res) => {
+// DELETE schedule (all authenticated users)
+router.delete('/schedules/:scheduleId', authenticateToken, (req, res) => {
     const scheduleId = req.params.scheduleId;
     
     const query = `DELETE FROM schedules WHERE id = ?`;

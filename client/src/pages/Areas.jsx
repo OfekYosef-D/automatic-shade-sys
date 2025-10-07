@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Map, Plus, Trash2, Eye, Settings } from 'lucide-react';
 import AddAreaMap from '../components/AddAreaMap';
 import InteractiveMap from '../components/InteractiveMap';
+import { SkeletonCard } from '../components/SkeletonLoader';
+import { getAuthHeaders } from '../utils/api';
+import { useAuth } from '../hooks/useAuth';
 
 const Areas = () => {
+    const { user } = useAuth();
     const [areas, setAreas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedArea, setSelectedArea] = useState(null);
@@ -17,7 +21,7 @@ const Areas = () => {
     const fetchAreas = async () => {
         try {
             setLoading(true);
-            const response = await fetch('http://localhost:3001/api/maps/areas');
+            const response = await fetch('/api/maps/areas');
                   if (response.ok) {
         const data = await response.json();
         setAreas(data);
@@ -42,8 +46,9 @@ const Areas = () => {
 
         try {
             setDeletingId(areaId);
-            const response = await fetch(`http://localhost:3001/api/maps/areas/${areaId}`, {
+            const response = await fetch(`/api/maps/areas/${areaId}`, {
                 method: 'DELETE',
+                headers: getAuthHeaders(),
             });
 
             if (response.ok) {
@@ -70,8 +75,18 @@ const Areas = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-lg">Loading areas...</div>
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">Areas & Maps</h1>
+                        <p className="text-gray-600">Loading...</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <SkeletonCard />
+                    <SkeletonCard />
+                    <SkeletonCard />
+                </div>
             </div>
         );
     }
@@ -84,7 +99,7 @@ const Areas = () => {
                     <h1 className="text-2xl font-bold text-gray-900">Areas & Maps</h1>
                     <p className="text-gray-600">Manage your uploaded maps and areas</p>
                 </div>
-                <AddAreaMap onMapAdded={handleMapAdded} />
+                {user?.role === 'admin' && <AddAreaMap onMapAdded={handleMapAdded} />}
             </div>
 
             {/* Areas Grid */}
@@ -105,7 +120,7 @@ const Areas = () => {
                                 {area.map_file_path ? (
                                     <>
                                         <img
-                                            src={`http://localhost:3001/api/maps/files/${area.map_file_path}`}
+                                            src={`/api/maps/files/${area.map_file_path}`}
                                             alt={area.map_name || 'Map preview'}
                                             className="w-full h-full object-cover"
                                             onError={(e) => {
@@ -166,25 +181,34 @@ const Areas = () => {
                                         View
                                     </button>
 
-                                    <button
-                                        onClick={() => handleConfigureArea(area)}
-                                        disabled={deletingId === area.id}
-                                        className={`flex items-center justify-center px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${deletingId === area.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    >
-                                        <Settings className="w-4 h-4" />
-                                    </button>
+                                    {/* Configure/Manage button - Admin & Maintenance */}
+                                    {(user?.role === 'admin' || user?.role === 'maintenance') && (
+                                        <button
+                                            onClick={() => handleConfigureArea(area)}
+                                            disabled={deletingId === area.id}
+                                            className={`flex-1 flex items-center justify-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${deletingId === area.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            title={user?.role === 'admin' ? 'Configure area and manage devices' : 'Manage devices'}
+                                        >
+                                            <Settings className="w-4 h-4 mr-1" />
+                                            Configure
+                                        </button>
+                                    )}
 
-                                    <button
-                                        onClick={() => handleDeleteArea(area.id)}
-                                        disabled={deletingId === area.id}
-                                        className={`flex items-center justify-center px-3 py-2 border border-red-300 text-red-700 text-sm font-medium rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors ${deletingId === area.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    >
-                                        {deletingId === area.id ? (
-                                            <svg className="animate-spin h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
-                                        ) : (
-                                            <Trash2 className="w-4 h-4" />
-                                        )}
-                                    </button>
+                                    {/* Delete Area button - Admin only */}
+                                    {user?.role === 'admin' && (
+                                        <button
+                                            onClick={() => handleDeleteArea(area.id)}
+                                            disabled={deletingId === area.id}
+                                            className={`flex items-center justify-center px-3 py-2 border border-red-300 text-red-700 text-sm font-medium rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors ${deletingId === area.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            title="Delete area"
+                                        >
+                                            {deletingId === area.id ? (
+                                                <svg className="animate-spin h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                                            ) : (
+                                                <Trash2 className="w-4 h-4" />
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>

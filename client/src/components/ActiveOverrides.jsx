@@ -12,7 +12,7 @@ const ActiveOverrides = () => {
   const fetchOverrides = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/api/shades/overrides');
+      const response = await fetch('/api/shades/overrides');
       const data = await response.json();
       setOverrides(data);
     } catch {

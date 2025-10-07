@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, X, Map, Upload } from 'lucide-react';
+import { getAuthHeadersForFormData } from '../utils/api';
 
 const AddAreaMap = ({ onMapAdded }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -9,6 +10,7 @@ const AddAreaMap = ({ onMapAdded }) => {
     mapFile: null
   });
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState('');
 
   const handleFileChange = (e) => {
@@ -27,6 +29,15 @@ const AddAreaMap = ({ onMapAdded }) => {
     if (!formData.mapFile || !formData.mapName.trim()) return;
 
     setLoading(true);
+    setUploadProgress(0);
+    
+    // Simulate upload progress
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 90) return prev;
+        return prev + 10;
+      });
+    }, 200);
     
     try {
       const formDataToSend = new FormData();
@@ -34,30 +45,41 @@ const AddAreaMap = ({ onMapAdded }) => {
       formDataToSend.append('mapName', formData.mapName);
       formDataToSend.append('mapDescription', formData.mapDescription);
 
-      const response = await fetch('http://localhost:3001/api/maps/upload', {
+      const response = await fetch('/api/maps/upload', {
         method: 'POST',
+        headers: getAuthHeadersForFormData(),
         body: formDataToSend,
       });
 
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
       if (response.ok) {
         // Reset form and close modal
-        setFormData({
-          mapName: '',
-          mapDescription: '',
-          mapFile: null
-        });
-        setPreviewUrl('');
-        setIsModalOpen(false);
-        
-        // Notify parent component
-        if (onMapAdded) {
-          onMapAdded();
-        }
+        setTimeout(() => {
+          setFormData({
+            mapName: '',
+            mapDescription: '',
+            mapFile: null
+          });
+          setPreviewUrl('');
+          setUploadProgress(0);
+          setIsModalOpen(false);
+          
+          // Notify parent component
+          if (onMapAdded) {
+            onMapAdded();
+          }
+        }, 500);
       } else {
         // Failed to upload map
+        clearInterval(progressInterval);
+        setUploadProgress(0);
       }
     } catch {
       // Error uploading map
+      clearInterval(progressInterval);
+      setUploadProgress(0);
     } finally {
       setLoading(false);
     }
@@ -196,12 +218,29 @@ const AddAreaMap = ({ onMapAdded }) => {
                 />
               </div>
 
+              {/* Upload Progress */}
+              {loading && uploadProgress > 0 && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Uploading...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-green-600 h-2 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
               {/* Buttons */}
               <div className="flex space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -213,7 +252,7 @@ const AddAreaMap = ({ onMapAdded }) => {
                   {loading ? (
                     <>
                       <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Uploading...
+                      Uploading {uploadProgress}%
                     </>
                   ) : (
                     'Upload Map'

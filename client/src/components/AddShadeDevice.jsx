@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, X, Blinds, Umbrella, Building, Home, Scissors, VenetianMask } from 'lucide-react';
+import { getAuthHeaders } from '../utils/api';
 
 const AddShadeDevice = ({ area, onDeviceAdded, onDeviceError, user, position, isSidebar = false }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,11 +26,9 @@ const AddShadeDevice = ({ area, onDeviceAdded, onDeviceError, user, position, is
     setLoading(true);
     
     try {
-      const response = await fetch('http://localhost:3001/api/shades/shades', {
+      const response = await fetch('/api/shades/shades', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           area_id: area.id,
           description: formData.description,
@@ -37,8 +36,7 @@ const AddShadeDevice = ({ area, onDeviceAdded, onDeviceError, user, position, is
           current_position: formData.current_position,
           target_position: formData.current_position, // Use current_position as target_position
           x: position?.x || 0,
-          y: position?.y || 0,
-          installed_by_user_id: user.id
+          y: position?.y || 0
         }),
       });
 

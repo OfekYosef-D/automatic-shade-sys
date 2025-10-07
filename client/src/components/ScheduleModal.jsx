@@ -16,7 +16,7 @@ const ScheduleModal = ({ shadeId, userId, onClose, onScheduleAdded }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/schedules', {
+      const res = await fetch('/api/schedules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
