@@ -34,7 +34,7 @@ const InteractiveMap = ({ area, onClose, onMapUpdated, isEditMode = false }) => 
 
   const loadAreaData = useCallback(async () => {
     try {
-      const response = await fetch(`http://localhost:3001/api/maps/areas/${area.id}`);
+      const response = await fetch(`/api/maps/areas/${area.id}`);
       if (response.ok) {
         const data = await response.json();
         setDevices(data.devices || []);
@@ -140,7 +140,7 @@ const InteractiveMap = ({ area, onClose, onMapUpdated, isEditMode = false }) => 
 
   const persistDevicePosition = async (device) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/shades/shades/${device.id}`, {
+      const res = await fetch(`/api/shades/shades/${device.id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ x: Math.round(device.x), y: Math.round(device.y) })
@@ -176,7 +176,7 @@ const InteractiveMap = ({ area, onClose, onMapUpdated, isEditMode = false }) => 
       map_description: toNull(areaForm.map_description)
     };
     try {
-      const res = await fetch(`http://localhost:3001/api/maps/areas/${area.id}`, {
+      const res = await fetch(`/api/maps/areas/${area.id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(payload)
@@ -206,7 +206,7 @@ const InteractiveMap = ({ area, onClose, onMapUpdated, isEditMode = false }) => 
     const fd = new FormData();
     fd.append('mapFile', newMapFile);
     try {
-      const res = await fetch(`http://localhost:3001/api/maps/areas/${area.id}/map`, {
+      const res = await fetch(`/api/maps/areas/${area.id}/map`, {
         method: 'PUT',
         headers: getAuthHeadersForFormData(),
         body: fd
@@ -352,7 +352,7 @@ const InteractiveMap = ({ area, onClose, onMapUpdated, isEditMode = false }) => 
             >
               {/* Map Image */}
               <img
-                src={`http://localhost:3001/api/maps/files/${currentMapFile}?v=${imageBust}&r=${imageRetry}`}
+                src={`/api/maps/files/${currentMapFile}?v=${imageBust}&r=${imageRetry}`}
                 alt={currentArea?.map_name || area.map_name}
                 className="absolute inset-0 w-full h-full object-contain"
                 style={{

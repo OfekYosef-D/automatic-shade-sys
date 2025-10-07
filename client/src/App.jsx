@@ -18,7 +18,9 @@ import Home from './pages/Home'; // The main "lobby" page.
 import AddAlert from './pages/AddAlert'; // The "add alert" page.
 import Areas from './pages/Areas'; // The "areas" page.
 import Login from './pages/Login'; // The login page.
+import ResetPassword from './pages/ResetPassword';
 import Navbar from './components/Navbar'; // The "VIP Section Manager" component.
+import Users from './pages/Users';
 
 // This is a small helper tool.
 // Its job is to look at the current web address (like "/map") and translate it
@@ -26,6 +28,7 @@ import Navbar from './components/Navbar'; // The "VIP Section Manager" component
 const getActivePage = (pathname) => {
     if (pathname === '/') return 'Dashboard';
     if (pathname.startsWith('/areas')) return 'Areas';
+    if (pathname.startsWith('/users')) return 'Users';
     return ''; // If we don't recognize the page, highlight nothing.
 };
 
@@ -48,8 +51,8 @@ const AppLayout = () => {
     );
   }
 
-  // If not logged in and not on login page, redirect to login
-  if (!user && location.pathname !== '/login') {
+  // If not logged in and not on login or reset-password page, redirect to login
+  if (!user && location.pathname !== '/login' && !location.pathname.startsWith('/reset-password')) {
     return <Routes><Route path="*" element={<Login />} /></Routes>;
   }
 
@@ -59,8 +62,13 @@ const AppLayout = () => {
   }
 
   // Login page (no navbar)
-  if (location.pathname === '/login') {
-    return <Routes><Route path="/login" element={<Login />} /></Routes>;
+  if (location.pathname === '/login' || location.pathname.startsWith('/reset-password')) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+      </Routes>
+    );
   }
 
   // Regular authenticated layout
@@ -72,6 +80,7 @@ const AppLayout = () => {
           <Route path="/" element={<Home />} />
           <Route path="/add-alert" element={<AddAlert />} />
           <Route path="/areas" element={<Areas />} />
+          <Route path="/users" element={<Users />} />
         </Routes>
       </main>
     </div>

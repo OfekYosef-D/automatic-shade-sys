@@ -29,10 +29,13 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
   // Load maintenance users for assignment dropdown
   useEffect(() => {
     if (canManageAlerts) {
-      fetch('http://localhost:3001/api/users?role=maintenance')
-        .then(res => res.json())
-        .then(data => setMaintenanceUsers(data))
-        .catch(() => {});
+      fetch('/api/users/maintenance', { headers: getAuthHeaders() })
+        .then(async (res) => {
+          if (!res.ok) return [];
+          try { return await res.json(); } catch { return []; }
+        })
+        .then(data => setMaintenanceUsers(Array.isArray(data) ? data : []))
+        .catch(() => setMaintenanceUsers([]));
     }
   }, [canManageAlerts]);
   
@@ -91,7 +94,7 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
   const handleAssignAlert = async (alertId, userId) => {
     setAssigningAlert(alertId);
     try {
-      const response = await fetch(`http://localhost:3001/api/alerts/${alertId}/assign`, {
+      const response = await fetch(`/api/alerts/${alertId}/assign`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ assigned_to_user_id: userId || null })
@@ -114,7 +117,7 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/alerts/${selectedAlert.id}`, {
+      const response = await fetch(`/api/alerts/${selectedAlert.id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -146,7 +149,7 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
 
     setIsUpdating(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/alerts/${selectedAlert.id}/status`, {
+      const response = await fetch(`/api/alerts/${selectedAlert.id}/status`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -292,6 +295,7 @@ const ActiveAlerts = ({ alerts = [], onAlertUpdate }) => {
                               </label>
                               <div className="relative">
                                 <select
+                                  aria-label="Assign alert to maintenance user"
                                   value={alert.assigned_to_user_id || ''}
                                   onChange={(e) => handleAssignAlert(alert.id, e.target.value)}
                                   disabled={assigningAlert === alert.id}

@@ -2,11 +2,21 @@ const db = require('./db');
 
 let schedulerInterval = null;
 
+// Runtime-configurable settings with safe defaults
+const schedulerSettings = {
+  intervalMinutes: 2,
+  overrideWindowMinutes: 30,
+  paused: false,
+};
+
 /**
  * Check and execute active schedules
  * Runs every minute to check if any schedules should be executed
  */
 const executeActiveSchedules = async () => {
+  if (schedulerSettings.paused) {
+    return; // do nothing while paused
+  }
   const now = new Date();
   const currentTime = now.toTimeString().slice(0, 5); // "15:35" format
   const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(); // "monday"
@@ -47,12 +57,14 @@ const executeActiveSchedules = async () => {
       return; // No schedules to execute
     }
 
-    console.log(`[Scheduler] Found ${schedules.length} schedule(s) to execute at ${currentTime}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Scheduler] Found ${schedules.length} schedule(s) to execute at ${currentTime}`);
+    }
 
     // Execute each schedule
     schedules.forEach(schedule => {
-      // Phase 2: Check for manual override in last 30 minutes
-      const overrideWindowMinutes = 30;
+      // Phase 2: Check for manual override in configured window
+      const overrideWindowMinutes = Number(schedulerSettings.overrideWindowMinutes) || 30;
       const now = new Date();
       const overrideThreshold = new Date(now.getTime() - overrideWindowMinutes * 60000);
       
@@ -61,7 +73,9 @@ const executeActiveSchedules = async () => {
         
         // If manual override within last 30 minutes, skip execution
         if (lastOverride >= overrideThreshold) {
-          console.log(`[Scheduler] ⊘ Skipped "${schedule.schedule_name}" - Manual override detected (${Math.round((now - lastOverride) / 60000)} min ago)`);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log(`[Scheduler] ⊘ Skipped "${schedule.schedule_name}" - Manual override detected (${Math.round((now - lastOverride) / 60000)} min ago)`);
+          }
           
           // Mark as executed so it doesn't try again today
           db.query(
@@ -109,7 +123,9 @@ const executeActiveSchedules = async () => {
             }
           });
 
-          console.log(`[Scheduler] ✓ Executed "${schedule.schedule_name}" - ${schedule.device_name} → ${schedule.target_position}%`);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log(`[Scheduler] ✓ Executed "${schedule.schedule_name}" - ${schedule.device_name} → ${schedule.target_position}%`);
+          }
 
           // Log the activity
           const logQuery = `
@@ -134,14 +150,19 @@ const executeActiveSchedules = async () => {
  * Start the scheduler
  * Configurable interval (default: 2 minutes for professional balance)
  */
-const startScheduler = (intervalMinutes = 2) => {
+const startScheduler = (intervalMinutes = schedulerSettings.intervalMinutes) => {
   if (schedulerInterval) {
-    console.log('[Scheduler] Already running');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[Scheduler] Already running');
+    }
     return;
   }
 
-  const intervalMs = intervalMinutes * 60 * 1000;
-  console.log(`[Scheduler] Started - checking schedules every ${intervalMinutes} minute(s)`);
+  schedulerSettings.intervalMinutes = intervalMinutes;
+  const intervalMs = schedulerSettings.intervalMinutes * 60 * 1000;
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[Scheduler] Started - checking schedules every ${schedulerSettings.intervalMinutes} minute(s)`);
+  }
   
   // Run immediately on start
   executeActiveSchedules();
@@ -159,7 +180,9 @@ const stopScheduler = () => {
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
-    console.log('[Scheduler] Stopped');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[Scheduler] Stopped');
+    }
   }
 };
 
@@ -169,14 +192,37 @@ const stopScheduler = () => {
 const getSchedulerStatus = () => {
   return {
     running: schedulerInterval !== null,
-    lastCheck: new Date().toISOString()
+    lastCheck: new Date().toISOString(),
+    settings: { ...schedulerSettings },
   };
+};
+
+// Update settings at runtime. Optionally restart interval timer if interval changed
+const updateSchedulerSettings = ({ intervalMinutes, overrideWindowMinutes, paused }) => {
+  let needsRestart = false;
+  if (typeof intervalMinutes === 'number' && intervalMinutes > 0 && intervalMinutes !== schedulerSettings.intervalMinutes) {
+    schedulerSettings.intervalMinutes = intervalMinutes;
+    needsRestart = true;
+  }
+  if (typeof overrideWindowMinutes === 'number' && overrideWindowMinutes >= 0) {
+    schedulerSettings.overrideWindowMinutes = overrideWindowMinutes;
+  }
+  if (typeof paused === 'boolean') {
+    schedulerSettings.paused = paused;
+  }
+  if (needsRestart) {
+    // restart interval with new cadence
+    stopScheduler();
+    startScheduler(schedulerSettings.intervalMinutes);
+  }
+  return { ...schedulerSettings };
 };
 
 module.exports = {
   startScheduler,
   stopScheduler,
   executeActiveSchedules,
-  getSchedulerStatus
+  getSchedulerStatus,
+  updateSchedulerSettings,
 };
 

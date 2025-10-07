@@ -26,7 +26,7 @@ const AddShadeDevice = ({ area, onDeviceAdded, onDeviceError, user, position, is
     setLoading(true);
     
     try {
-      const response = await fetch('http://localhost:3001/api/shades/shades', {
+      const response = await fetch('/api/shades/shades', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({

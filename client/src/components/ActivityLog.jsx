@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Edit, AlertTriangle, Clock, CheckCircle, Filter, Upload, Wrench, Calendar, User } from 'lucide-react';
+import { getAuthHeaders, handleApiError } from '../utils/api';
 
 const ActivityLog = ({ activities = [] }) => {
   const [allActivities, setAllActivities] = useState(activities);
@@ -13,10 +14,22 @@ const ActivityLog = ({ activities = [] }) => {
 
   // Load users for filter
   useEffect(() => {
-    fetch('http://localhost:3001/api/users')
-      .then(res => res.json())
-      .then(data => setUsers(data))
-      .catch(() => {});
+    const loadUsers = async () => {
+      try {
+        const res = await fetch('/api/users', { headers: getAuthHeaders() });
+        const err = await handleApiError(res);
+        if (err) {
+          // Not authorized? fall back to empty list to avoid UI crash
+          setUsers([]);
+          return;
+        }
+        const data = await res.json();
+        setUsers(Array.isArray(data) ? data : []);
+      } catch {
+        setUsers([]);
+      }
+    };
+    loadUsers();
   }, []);
 
   const getActivityIcon = (type) => {
@@ -87,6 +100,7 @@ const ActivityLog = ({ activities = [] }) => {
             <option value="maintenance">🛠️ Maintenance</option>
             <option value="map_upload">🗺️ Maps</option>
             <option value="schedule">📅 Schedules</option>
+            <option value="update">👤 Users</option>
           </select>
         </div>
         <div>
@@ -105,6 +119,7 @@ const ActivityLog = ({ activities = [] }) => {
           </select>
         </div>
       </div>
+      
       
       {filteredActivities.length === 0 ? (
         <p className="text-gray-500 text-center py-8 text-sm">No activity found</p>

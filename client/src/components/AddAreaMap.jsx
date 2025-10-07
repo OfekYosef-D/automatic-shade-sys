@@ -45,7 +45,7 @@ const AddAreaMap = ({ onMapAdded }) => {
       formDataToSend.append('mapName', formData.mapName);
       formDataToSend.append('mapDescription', formData.mapDescription);
 
-      const response = await fetch('http://localhost:3001/api/maps/upload', {
+      const response = await fetch('/api/maps/upload', {
         method: 'POST',
         headers: getAuthHeadersForFormData(),
         body: formDataToSend,

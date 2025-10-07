@@ -1,6 +1,6 @@
 # Automatic Shading Systems
 
-A full‑stack project for managing areas, maps, and shading devices with alerts and dashboards.
+A production-grade full‑stack project for managing areas, maps, and shading devices with comprehensive authorization, alerts, dashboards, and intelligent automation.
 
 ## Prerequisites
 - Node.js 18+
@@ -8,10 +8,10 @@ A full‑stack project for managing areas, maps, and shading devices with alerts
 - MySQL 8+ (or compatible)
 
 ## Repository Layout
-- `client/` — Vite + React frontend
-- `server/` — Express backend (MySQL via mysql2)
+- `client/` — Vite + React frontend with Tailwind CSS
+- `server/` — Express backend with JWT auth, bcrypt, rate limiting, and security middleware
 - `server/uploads/maps/` — Stored map files (ignored in VCS)
-- `shade_system_test.sql` — Database schema and minimal seed
+- `shade_system_test.sql` — Database schema with user authentication and area assignments
 
 ## 1) Database Setup
 1. Create the database and tables:
@@ -28,11 +28,28 @@ npm install
 ```
 Create a `.env` file in `server/`:
 ```
+# Server
+PORT=3001
+JWT_SECRET=dev-change-this-secret
+
+# Frontend origin(s)
+CORS_ORIGINS=http://localhost:5173
+CLIENT_ORIGIN=http://localhost:5173
+
+# Database
 DB_HOST=localhost
+DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=
 DB_NAME=shade_system_test
-DB_PORT=3306
+
+# SMTP (set these to enable real emails; otherwise console fallback is used)
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=no-reply@autoshade.local
 ```
 Start the server:
 ```
@@ -93,26 +110,69 @@ INSERT INTO area_assignments (user_id, area_id) VALUES (3, 1);
 ```
 
 ## Core Features
-- Areas & Maps
-  - Upload map (image/SVG, max 10MB), edit map name/description, replace map
-  - Interactive map with device management (configure mode)
-  - Device drag‑to‑reposition with persistence
-- Devices (Shades)
-  - Add devices at map coordinates, control position, quick actions
-  - Device status management (Active, Under Maintenance, Inactive)
-- **Automatic Scheduling System** 🆕
-  - Create time-based schedules for devices
-  - Automatic execution every minute
-  - Daily or day-specific schedules (Monday-Sunday)
-  - Activity logging for all schedule executions
-  - Admin/Maintenance only management
-- Alerts
-  - Create alerts (via dashboard button), view active alerts, update status
-  - Alert assignment to maintenance staff
-  - "My Alerts" filtering for assigned maintenance tasks
-- Dashboard
-  - Metrics, active alerts, recent activity log
-  - Real-time updates when data changes
+
+### 🔐 **Authentication & Authorization**
+- **JWT-based authentication** with secure token management
+- **bcrypt password hashing** for secure password storage
+- **Role-based access control** (Admin, Maintenance, Planner)
+- **Password reset functionality** with email tokens
+- **Session management** with automatic logout on token expiry
+
+### 🗺️ **Areas & Maps Management**
+- Upload map files (image/SVG, max 10MB) with progress tracking
+- Interactive map with device management (configure mode)
+- Device drag‑to‑reposition with persistence
+- Area-based permissions for planners
+- Map replacement and metadata editing
+
+### 🎛️ **Device Management**
+- Add devices at map coordinates with precise positioning
+- Real-time device control with position updates
+- Device status management (Active, Under Maintenance, Inactive)
+- Quick actions and bulk operations
+- Device deletion with proper authorization checks
+
+### ⏰ **Intelligent Scheduling System** 🆕
+- **Automatic execution** with configurable intervals (1-5 minutes)
+- **Smart override detection** - respects manual user changes
+- **Execute-once-per-day** logic to prevent continuous overrides
+- **Daily or day-specific schedules** (Monday-Sunday)
+- **Pause/Enable functionality** for emergency control
+- **Admin configuration panel** for scheduler settings
+- **Activity logging** for all schedule executions and skips
+- **Professional UX** with read-only summary and edit mode
+
+### 🚨 **Advanced Alert System**
+- Create alerts with priority levels and detailed descriptions
+- **Alert assignment** to maintenance staff with auto-acknowledgment
+- **"My Alerts" filtering** for assigned maintenance tasks
+- Alert status workflow (Open → Acknowledged → Resolved)
+- Real-time alert updates and notifications
+
+### 👥 **User Management** (Admin Only)
+- **Complete user CRUD** operations (Create, Read, Update, Delete)
+- **Role assignment** with proper validation
+- **Password generation** for new users
+- **Password policy enforcement** (8+ chars, letters + numbers)
+- **Self-protection** - admins cannot delete/demote themselves
+- **Activity logging** for all user management actions
+
+### 📊 **Dashboard & Analytics**
+- **Real-time metrics** with device counts and status
+- **Active alerts** with assignment and priority indicators
+- **Comprehensive activity log** with filtering (type, user, date)
+- **Scheduler status** with last execution time and settings
+- **Admin-only scheduler configuration** panel
+- Real-time updates when data changes
+
+### 🔒 **Security & Validation**
+- **Helmet.js** for HTTP security headers
+- **Rate limiting** on all API endpoints
+- **Input validation** with centralized middleware
+- **SQL injection protection** with parameterized queries
+- **CORS whitelist** for secure cross-origin requests
+- **File upload security** with MIME type validation
+- **Error handling** with user-friendly messages
 
 ## Routes Kept for Submission
 - Frontend pages: `/` (Dashboard), `/areas`, `/add-alert`
@@ -130,52 +190,78 @@ INSERT INTO area_assignments (user_id, area_id) VALUES (3, 1);
 
 ## Quick Test Checklist
 
-### 1. **Authentication & Roles**
-   - Login as alice@campus.edu / password123 (Admin) → See all buttons
-   - Login as bob@campus.edu / password123 (Maintenance) → No Configure/Delete area buttons
+### 1. **Authentication & Authorization** 🔐
+   - Login as alice@campus.edu / password123 (Admin) → See all buttons and Users menu
+   - Login as bob@campus.edu / password123 (Maintenance) → No Configure/Delete area buttons, no Users menu
    - Login as dana@campus.edu / password123 (Planner) → View-only, can only create alerts
+   - Test "Forgot Password" → Email sent to console with reset link
    - Test logout → Redirects to login
 
-### 2. **Alert Assignment Workflow** ⭐ NEW
+### 2. **User Management** (Admin Only) 👥
+   - Login as Admin → Click "Users" in navbar
+   - Create new user with generated password
+   - Edit user role and details
+   - Test password policy (try weak password)
+   - Delete user (cannot delete self)
+   - Check activity log for user management actions
+
+### 3. **Alert Assignment Workflow** 🚨
    - Login as Admin → Create alert
    - Assign alert to "Bob Shade" from dropdown → Auto-acknowledges + shows "Being handled" badge
    - Login as Bob (maintenance) → Click "My Alerts (1)" button → See only assigned alerts
    - Resolve alert → Disappears from active alerts
 
-### 3. **Enhanced Activity Log** ⭐ NEW
+### 4. **Enhanced Activity Log** 📊
    - Filter by Type: Select "Overrides" → See only override actions
    - Filter by User: Select "Bob Shade" → See only Bob's actions
+   - Filter by Type: Select "Users" → See user management actions
    - Each entry shows: User name + Role badge + Icon + Description + Time
-   - Shows last 10 activities (increased from 5)
+   - Shows last 10 activities with comprehensive filtering
 
-### 4. **Area-Based Permissions (Planner)** ⭐ NEW
+### 5. **Area-Based Permissions (Planner)** 🗺️
    - Login as Admin → Upload a map (create area 1)
    - In MySQL: `INSERT INTO area_assignments (user_id, area_id) VALUES (3, 1);` (assign Dana to area 1)
    - Login as Dana (planner) → Can control devices in area 1
    - Try to control device in unassigned area → See detailed error modal
 
-### 5. **Error Handling** ⭐ NEW
+### 6. **Scheduler Configuration** ⏰ (Admin Only)
+   - Login as Admin → Home page → Scheduler Status card
+   - Click "Edit" to reveal configuration panel
+   - Change interval (1-5 minutes or custom)
+   - Set override window (0-60 minutes)
+   - Toggle pause/enable
+   - Save changes → See updated status
+   - Test "Reset" to restore defaults
+
+### 7. **Intelligent Scheduling** 🤖
+   - Create schedule for 2 minutes from now
+   - Wait for automatic execution
+   - Check activity log for execution record
+   - Test manual override detection (change device before schedule)
+   - Verify schedule skips when override detected
+
+### 8. **Error Handling & Security** 🔒
    - Login as Planner → Try to click Configure (hidden, shouldn't see it)
-   - Try to drag device in unassigned area → Detailed modal: "Access denied: You are not assigned to this area" + help text
+   - Try to drag device in unassigned area → Detailed modal with help text
+   - Test rate limiting (rapid API calls)
+   - Test file upload security (try non-image files)
+   - Test SQL injection protection (malicious inputs)
 
-### 6. **Areas** (Admin only)
-   - Upload map; configure; change name/description; replace map; drag device
-   
-### 7. **Devices**
-   - Admin: Can add/delete
-   - Maintenance: Can add/delete
-   - Planner: Can only control positions in assigned areas
+### 9. **Areas & Devices** 🎛️
+   - Admin: Upload map, configure, change name/description, replace map, drag device
+   - Maintenance: Add/delete devices, control positions
+   - Planner: Control positions in assigned areas only
 
-### 8. **Automatic Scheduling** 🆕
+## 🚀 **Production-Ready Features**
 
-The system includes a production-ready automatic scheduler that executes device schedules in real-time.
+### **Intelligent Scheduling System** ⏰
+The system includes a production-grade automatic scheduler with intelligent override detection and professional configuration management.
 
-#### How It Works:
+#### **How It Works:**
 
 1. **Create a Schedule** (Admin/Maintenance only):
    - Open Configure mode for an area
-   - Click on a device
-   - Click "Add Schedule"
+   - Click on a device → "Add Schedule"
    - Fill in:
      - **Name**: "Morning Open", "Evening Close", etc.
      - **Day**: Daily or specific day (Monday-Sunday)
@@ -183,95 +269,130 @@ The system includes a production-ready automatic scheduler that executes device 
      - **End Time**: When to end (e.g., 09:00)
      - **Target Position**: Device position (0=closed, 100=open)
 
-2. **Intelligent Automatic Execution** (Phase 2 - Smart Override Detection):
-   - Scheduler runs every 2 minutes (configurable)
-   - **Executes once per day at start_time** (not continuously)
-   - **Detects manual overrides** - Skips execution if user changed device within 30 minutes
-   - After execution, users maintain full manual control
-   - Automatically resumes next matching day
-   - Logs all executions and skips to activity log
-   - Respects device status (skips inactive/maintenance devices)
+2. **Intelligent Automatic Execution**:
+   - **Configurable intervals** (1-5 minutes, default: 2 minutes)
+   - **Execute-once-per-day** logic (prevents continuous overrides)
+   - **Smart override detection** - Skips if user changed device within window
+   - **Respects device status** (skips inactive/maintenance devices)
+   - **Activity logging** for all executions and intelligent skips
 
-3. **Example Schedule (Phase 2 - Intelligent Behavior)**:
+3. **Professional Configuration** (Admin Only):
+   - **Scheduler Status Card** on Home dashboard
+   - **Edit Mode** with intuitive controls
+   - **Interval Settings**: 1m, 2m, 5m buttons + custom input
+   - **Override Window**: 0-60 minutes (detection sensitivity)
+   - **Pause/Enable Toggle** for emergency control
+   - **Real-time Status** with last execution time
+
+4. **Smart Behavior Examples**:
    ```
-   Name: "Morning Open"
-   Day: Daily
-   Start: 07:00
-   End: 09:00
-   Position: 100% (fully open)
-   
-   Scenario A - No User Intervention:
+   Scenario A - Normal Operation:
    07:00 → Schedule executes → Device opens to 100%
    07:30 → User manually changes to 50%
    07:32 → System respects change (no override)
    Next day 07:00 → Device opens to 100% again
    
-   Scenario B - User Pre-sets (NEW in Phase 2):
+   Scenario B - User Pre-sets (Intelligent Detection):
    06:40 → User manually sets device to 50%
    07:00 → Schedule detects recent manual change (20 min ago)
          → SKIPS execution for today
          → Device stays at 50% (user's choice respected)
          → Activity log: "Schedule skipped: Manual override detected"
    Next day 07:00 → Schedule executes again (if no manual change)
-   
-   ✅ Automation sets initial state when needed
-   ✅ Detects and respects user intent
-   ✅ Users can prevent automation by manual pre-set
-   ✅ Intelligent, context-aware behavior
    ```
 
-4. **Activity Logging**:
-   - All schedule executions are logged
-   - Shows in activity log: "Schedule 'Morning Open' executed: Device Name → 100%"
-   - Tracks which user created the schedule
+#### **Testing the Scheduler:**
+1. **Quick Test**: Create schedule for 2 minutes from now → Watch automatic execution
+2. **Override Test**: Change device manually before schedule → Verify skip behavior
+3. **Configuration Test**: Admin → Home → Scheduler Status → Edit → Change settings
+4. **Pause Test**: Toggle pause/enable → Verify scheduler respects setting
 
-5. **Professional Schedule Management**:
-   - **Pause/Enable Toggle** - Temporarily disable schedules without deleting
-   - **Visual Status Indicators** - See at a glance which schedules are active/paused
-   - **Quick Controls** - Pause button for emergencies or maintenance
-   - **Activity Logging** - All pause/enable actions tracked
-   - Only executes on 'active' schedules
-   - Skips devices that are 'under_maintenance' or 'inactive'
-   
-6. **Smart Schedule Behavior** (Professional Design):
-   - **At Start Time** (e.g., 07:00): Schedule executes once, sets device position
-   - **After Execution**: User has full manual control, changes are respected
-   - **End Time** (e.g., 09:00): No action, device maintains current position
-   - **Next Day**: Schedule executes again at start time
-   - **Emergency Override**: Pause button available for Admin/Maintenance
-   - **Best of Both Worlds**: Automation convenience + User control
-
-#### Testing the Scheduler:
-
-**Quick Test:**
-1. Login as Admin (alice@campus.edu)
-2. Create a schedule for 2 minutes from now
-   - Example: If it's 15:30, create schedule 15:32-15:35
-3. Wait for the time to arrive
-4. Watch the device position change automatically
-5. Check activity log for execution record
-
-**Production Use Cases:**
+#### **Production Use Cases:**
 - **Morning Open**: 07:00-09:00 → Open all classroom shades
-- **Midday Shade**: 12:00-14:00 → Partial close to reduce glare
+- **Midday Shade**: 12:00-14:00 → Partial close to reduce glare  
 - **Evening Close**: 18:00-20:00 → Close all shades for security
-- **Weekend Mode**: Saturday/Sunday → Different schedule
+- **Weekend Mode**: Saturday/Sunday → Different schedule patterns
 
-#### Scheduler Status (Admin API):
-```bash
-# Check if scheduler is running
-GET /api/schedules/status
+### **User Management System** 👥
+Complete admin-only user management with security and audit features.
 
-# Manually trigger execution (testing)
-POST /api/schedules/execute-now
-```
+#### **Features:**
+- **User CRUD** operations (Create, Read, Update, Delete)
+- **Role assignment** with validation (Admin, Maintenance, Planner)
+- **Password generation** for new users
+- **Password policy enforcement** (8+ chars, letters + numbers)
+- **Self-protection** - admins cannot delete/demote themselves
+- **Activity logging** for all user management actions
+- **Professional UI** with hover animations and role badges
 
-## Notes
+### **Password Reset System** 🔐
+Secure password reset with email token authentication.
+
+#### **Features:**
+- **Email-based reset** with secure tokens
+- **Console fallback** for development (no SMTP required)
+- **Token expiration** (1 hour default)
+- **Secure token generation** with crypto.randomBytes
+- **User-friendly interface** with clear instructions
+
+### **Enhanced Security** 🔒
+Production-grade security measures throughout the application.
+
+#### **Security Features:**
+- **Helmet.js** for HTTP security headers
+- **Rate limiting** on all API endpoints (auth, users, dashboard, etc.)
+- **Input validation** with centralized middleware
+- **SQL injection protection** with parameterized queries
+- **CORS whitelist** for secure cross-origin requests
+- **File upload security** with MIME type validation
+- **Error handling** with user-friendly messages
+- **JWT token management** with automatic refresh
+
+## 🛠️ **Technical Implementation**
+
+### **Backend Architecture**
+- **Express.js** with middleware-based architecture
+- **MySQL** with connection pooling for stability
+- **JWT authentication** with bcrypt password hashing
+- **Role-based middleware** for granular access control
+- **Rate limiting** and **Helmet.js** for security
+- **Centralized validation** with custom middleware
+- **Activity logging** for comprehensive audit trails
+
+### **Frontend Architecture**
+- **React 18** with functional components and hooks
+- **Vite** for fast development and building
+- **Tailwind CSS** for responsive, accessible design
+- **Context API** for global state management
+- **Custom hooks** for authentication and API calls
+- **Error boundaries** and loading states
+
+### **Database Schema**
+- **Users table** with password hashing and role management
+- **Area assignments** for planner permissions
+- **Activity logging** with comprehensive event tracking
+- **Password reset tokens** with expiration
+- **Scheduler settings** with configuration storage
+
+### **Security Measures**
+- **SQL injection protection** with parameterized queries
+- **XSS prevention** with input sanitization
+- **CSRF protection** with same-origin policy
+- **Rate limiting** on all endpoints
+- **File upload validation** with MIME type checking
+- **CORS whitelist** for secure cross-origin requests
+
+## 📋 **Development Notes**
 - `server/uploads/maps/` is ignored by git and created at runtime
 - To reset DB, re‑run `shade_system_test.sql`
+- All API calls use relative `/api` paths for production deployment
+- Console logs are guarded for production environments
+- SMTP configuration optional (console fallback available)
 
-## Build
-- Frontend production build: `cd client && npm run build`
-- Backend runs via `node server/index.js`
+## 🚀 **Build & Deployment**
+- **Frontend production build**: `cd client && npm run build`
+- **Backend production**: `cd server && npm start`
+- **Environment variables** required for production deployment
+- **Database migrations** handled via SQL schema file
 
 

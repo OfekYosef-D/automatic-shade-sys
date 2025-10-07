@@ -21,7 +21,7 @@ const Areas = () => {
     const fetchAreas = async () => {
         try {
             setLoading(true);
-            const response = await fetch('http://localhost:3001/api/maps/areas');
+            const response = await fetch('/api/maps/areas');
                   if (response.ok) {
         const data = await response.json();
         setAreas(data);
@@ -46,7 +46,7 @@ const Areas = () => {
 
         try {
             setDeletingId(areaId);
-            const response = await fetch(`http://localhost:3001/api/maps/areas/${areaId}`, {
+            const response = await fetch(`/api/maps/areas/${areaId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders(),
             });
@@ -120,7 +120,7 @@ const Areas = () => {
                                 {area.map_file_path ? (
                                     <>
                                         <img
-                                            src={`http://localhost:3001/api/maps/files/${area.map_file_path}`}
+                                            src={`/api/maps/files/${area.map_file_path}`}
                                             alt={area.map_name || 'Map preview'}
                                             className="w-full h-full object-cover"
                                             onError={(e) => {

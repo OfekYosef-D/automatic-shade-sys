@@ -18,7 +18,7 @@ const AddAlert = () => {
   useEffect(() => {
     const loadAreas = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/maps/areas');
+        const res = await fetch('/api/maps/areas');
         if (res.ok) {
           const data = await res.json();
           setAreas(data);
@@ -55,7 +55,7 @@ const AddAlert = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:3001/api/alerts', {
+      const response = await fetch('/api/alerts', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -128,6 +128,7 @@ const AddAlert = () => {
             </div>
             {locationMode === 'area' ? (
               <select
+                aria-label="Select area for alert location"
                 value={selectedAreaId}
                 onChange={(e) => setSelectedAreaId(e.target.value)}
                 required
@@ -158,12 +159,13 @@ const AddAlert = () => {
               Priority Level *
             </label>
             <select
+              aria-label="Select alert priority"
               id="priority"
               name="priority"
               value={formData.priority}
               onChange={handleInputChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full text-sm px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="Low">Low</option>
               <option value="Medium">Medium</option>

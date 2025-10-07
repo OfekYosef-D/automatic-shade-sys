@@ -4,6 +4,7 @@ USE shade_system_test;
 DROP TABLE IF EXISTS manual_overrides;
 DROP TABLE IF EXISTS schedules;
 DROP TABLE IF EXISTS activity_log;
+DROP TABLE IF EXISTS password_resets;
 DROP TABLE IF EXISTS alerts;
 DROP TABLE IF EXISTS shades;
 DROP TABLE IF EXISTS area_assignments;
@@ -98,6 +99,15 @@ CREATE TABLE IF NOT EXISTS activity_log (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   user_id INT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Password reset tokens
+CREATE TABLE IF NOT EXISTS password_resets (
+  user_id INT PRIMARY KEY,
+  token VARCHAR(128) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS manual_overrides (

@@ -16,7 +16,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
   // Fetch schedules for a specific shade
   const fetchSchedules = async (shadeId) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/schedules/shade/${shadeId}`, {
+      const response = await fetch(`/api/schedules/shade/${shadeId}`, {
         headers: getAuthHeaders()
       });
       if (response.ok) {
@@ -77,7 +77,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     setLoading(prev => ({ ...prev, [shadeId]: true }));
     
     try {
-      const response = await fetch('http://localhost:3001/api/schedules', {
+      const response = await fetch('/api/schedules', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -115,7 +115,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
   // Toggle schedule active/inactive
   const handleToggleSchedule = async (scheduleId, shadeId) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/schedules/${scheduleId}/toggle`, {
+      const response = await fetch(`/api/schedules/${scheduleId}/toggle`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
       });
@@ -147,7 +147,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     }
 
     try {
-      const response = await fetch(`http://localhost:3001/api/schedules/${scheduleId}`, {
+      const response = await fetch(`/api/schedules/${scheduleId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -198,7 +198,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     setLoading(prev => ({ ...prev, [shadeId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:3001/api/shades/shades/${shadeId}/override`, {
+      const response = await fetch(`/api/shades/shades/${shadeId}/override`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -254,7 +254,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     setLoading(prev => ({ ...prev, [shadeId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:3001/api/shades/shades/${shadeId}/override`, {
+      const response = await fetch(`/api/shades/shades/${shadeId}/override`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -293,7 +293,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     setLoading(prev => ({ ...prev, [shadeId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:3001/api/shades/shades/${shadeId}`, {
+      const response = await fetch(`/api/shades/shades/${shadeId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -321,7 +321,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
     setLoading(prev => ({ ...prev, [shadeId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:3001/api/shades/shades/${shadeId}`, {
+      const response = await fetch(`/api/shades/shades/${shadeId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: newStatus })
@@ -405,6 +405,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
                   {(user?.role === 'admin' || user?.role === 'maintenance') && (
                     <div className="relative">
                       <select
+                        aria-label="Device status"
                         value={shade.status}
                         onChange={(e) => handleStatusChange(shade.id, e.target.value)}
                         disabled={loading[shade.id]}
@@ -636,6 +637,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
                       
                       <div className="relative">
                         <select
+                          aria-label="Schedule day of week"
                           value={scheduleFormData[shade.id]?.dayOfWeek || 'daily'}
                           onChange={(e) => handleScheduleInputChange(shade.id, 'dayOfWeek', e.target.value)}
                           className="w-full border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
