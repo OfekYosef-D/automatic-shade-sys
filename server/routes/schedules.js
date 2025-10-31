@@ -33,7 +33,6 @@ router.post('/', authenticateToken, requireRole('admin', 'maintenance'), (req, r
     name,
     day_of_week,
     start_time,
-    end_time,
     target_position,
     is_active
   } = req.body;
@@ -48,13 +47,8 @@ router.post('/', authenticateToken, requireRole('admin', 'maintenance'), (req, r
     return res.status(400).json({ error: 'Valid shade ID is required' });
   }
 
-  if (!start_time || !end_time) {
-    return res.status(400).json({ error: 'Start time and end time are required' });
-  }
-
-  // Validate time logic
-  if (start_time >= end_time) {
-    return res.status(400).json({ error: 'End time must be after start time' });
+  if (!start_time) {
+    return res.status(400).json({ error: 'Start time is required' });
   }
 
   const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'daily'];
@@ -70,9 +64,9 @@ router.post('/', authenticateToken, requireRole('admin', 'maintenance'), (req, r
   const created_by_user_id = req.user.id; // Use authenticated user ID
 
   db.query(
-    `INSERT INTO schedules (shade_id, name, day_of_week, start_time, end_time, target_position, is_active, created_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [shade_id, sanitizedName, day_of_week, start_time, end_time, position, is_active ?? true, created_by_user_id],
+    `INSERT INTO schedules (shade_id, name, day_of_week, start_time, target_position, is_active, created_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [shade_id, sanitizedName, day_of_week, start_time, position, is_active ?? true, created_by_user_id],
     (err, result) => {
       if (err) {
         console.error('Database error creating schedule:', err);
