@@ -416,15 +416,15 @@ router.get('/shades/:shadeId/schedules', (req, res) => {
 
 // POST new schedule (all authenticated users can create schedules)
 router.post('/schedules', authenticateToken, (req, res) => {
-    const { shade_id, name, day_of_week, start_time, end_time, target_position } = req.body;
+    const { shade_id, name, day_of_week, start_time, target_position } = req.body;
     const created_by_user_id = req.user.id; // Use authenticated user from JWT
     
     const query = `
-        INSERT INTO schedules (shade_id, name, day_of_week, start_time, end_time, target_position, created_by_user_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO schedules (shade_id, name, day_of_week, start_time, target_position, created_by_user_id)
+        VALUES (?, ?, ?, ?, ?, ?)
     `;
     
-    connection.query(query, [shade_id, name, day_of_week, start_time, end_time, target_position, created_by_user_id], (err, result) => {
+    connection.query(query, [shade_id, name, day_of_week, start_time, target_position, created_by_user_id], (err, result) => {
         if (err) {
             console.error('Error creating schedule:', err);
             res.status(500).send('Error creating schedule');

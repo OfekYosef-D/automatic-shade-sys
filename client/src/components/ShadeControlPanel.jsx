@@ -36,7 +36,6 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
         name: '',
         dayOfWeek: 'daily',
         startTime: '',
-        endTime: '',
         targetPosition: 0
       }
     }));
@@ -64,13 +63,8 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
       return;
     }
 
-    if (!formData.startTime || !formData.endTime) {
-      alert('Please enter both start and end times');
-      return;
-    }
-
-    if (formData.startTime >= formData.endTime) {
-      alert('End time must be after start time');
+    if (!formData.startTime) {
+      alert('Please enter a start time');
       return;
     }
 
@@ -85,7 +79,6 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
           name: formData.name.trim(),
           day_of_week: formData.dayOfWeek,
           start_time: formData.startTime,
-          end_time: formData.endTime,
           target_position: formData.targetPosition
         })
       });
@@ -553,7 +546,7 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
                             <div className="text-xs text-gray-600 mt-1">
                               <span className="flex items-center">
                                 <Clock className="w-3 h-3 mr-1" />
-                                {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
+                                {formatTime(schedule.start_time)}
                               </span>
                               <span className="ml-4">
                                 {formatDayOfWeek(schedule.day_of_week)} • {schedule.target_position}% position
@@ -652,28 +645,16 @@ const ShadeControlPanel = ({ area, shades, onShadeUpdate, user, allowDelete = fa
                         </select>
                       </div>
                       
-                      <div className="flex space-x-2">
-                        <input
-                          type="time"
-                          value={scheduleFormData[shade.id]?.startTime || ''}
-                          onChange={(e) => handleScheduleInputChange(shade.id, 'startTime', e.target.value)}
-                          className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                          lang="en"
-                          onInvalid={(e) => e.target.setCustomValidity('Please select a start time')}
-                          onInput={(e) => e.target.setCustomValidity('')}
-                        />
-                        <input
-                          type="time"
-                          value={scheduleFormData[shade.id]?.endTime || ''}
-                          onChange={(e) => handleScheduleInputChange(shade.id, 'endTime', e.target.value)}
-                          className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                          lang="en"
-                          onInvalid={(e) => e.target.setCustomValidity('Please select an end time')}
-                          onInput={(e) => e.target.setCustomValidity('')}
-                        />
-                      </div>
+                      <input
+                        type="time"
+                        value={scheduleFormData[shade.id]?.startTime || ''}
+                        onChange={(e) => handleScheduleInputChange(shade.id, 'startTime', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                        lang="en"
+                        onInvalid={(e) => e.target.setCustomValidity('Please select a start time')}
+                        onInput={(e) => e.target.setCustomValidity('')}
+                      />
                       
                       <div>
                         <label className="block text-xs text-gray-600 mb-1">

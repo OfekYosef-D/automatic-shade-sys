@@ -8,7 +8,6 @@ const ScheduleModal = ({ shadeId, userId, onClose, onScheduleAdded }) => {
   const [name, setName] = useState('');
   const [dayOfWeek, setDayOfWeek] = useState('daily');
   const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
   const [targetPosition, setTargetPosition] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +23,6 @@ const ScheduleModal = ({ shadeId, userId, onClose, onScheduleAdded }) => {
           name,
           day_of_week: dayOfWeek,
           start_time: startTime,
-          end_time: endTime,
           target_position: targetPosition,
           created_by_user_id: userId
         })
@@ -59,22 +57,13 @@ const ScheduleModal = ({ shadeId, userId, onClose, onScheduleAdded }) => {
               <option key={day} value={day}>{day.charAt(0).toUpperCase() + day.slice(1)}</option>
             ))}
           </select>
-          <div className="flex space-x-2">
-            <input
-              type="time"
-              value={startTime}
-              onChange={e => setStartTime(e.target.value)}
-              className="flex-1 border rounded px-2 py-1"
-              required
-            />
-            <input
-              type="time"
-              value={endTime}
-              onChange={e => setEndTime(e.target.value)}
-              className="flex-1 border rounded px-2 py-1"
-              required
-            />
-          </div>
+          <input
+            type="time"
+            value={startTime}
+            onChange={e => setStartTime(e.target.value)}
+            className="w-full border rounded px-2 py-1"
+            required
+          />
           <input
             type="number"
             min="0"
