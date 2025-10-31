@@ -67,7 +67,6 @@ CREATE TABLE IF NOT EXISTS schedules (
   name VARCHAR(100),
   day_of_week ENUM('monday','tuesday','wednesday','thursday','friday','saturday','sunday','daily') DEFAULT 'daily',
   start_time TIME,
-  end_time TIME,
   target_position INT DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,
   created_by_user_id INT,
@@ -143,8 +142,8 @@ INSERT INTO users (name, email, password_hash, role) VALUES
 -- (1, 'Sample Shade', 'blinds', 50, 50, 2);
 
 -- Insert sample schedules (will be updated when users add shades)
--- INSERT INTO schedules (shade_id, name, day_of_week, start_time, end_time, target_position, created_by_user_id) VALUES
--- (1, 'Sample Schedule', 'daily', '07:00:00', '09:00:00', 25, 3);
+-- INSERT INTO schedules (shade_id, name, day_of_week, start_time, target_position, created_by_user_id) VALUES
+-- (1, 'Sample Schedule', 'daily', '07:00:00', 25, 3);
 
 -- Insert sample alerts
 INSERT INTO alerts (description, location, priority, created_by_user_id) VALUES
